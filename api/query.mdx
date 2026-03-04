@@ -1,0 +1,258 @@
+---
+title: Query API
+description: Query the database with new binaries or functions without storing them
+---
+
+## Query with SMDA Report
+
+```http
+POST /query
+```
+
+Queries the database with an SMDA disassembly report without adding it to storage.
+
+<ParamField query="minhash_threshold" type="float">
+  Minimum MinHash similarity threshold (0.0 to 1.0)
+</ParamField>
+
+<ParamField query="pichash_size" type="integer">
+  PicHash size threshold
+</ParamField>
+
+<ParamField body="smda_report" type="object" required>
+  SMDA disassembly report in JSON format
+</ParamField>
+
+<ResponseField name="status" type="string">
+  Response status
+</ResponseField>
+
+<ResponseField name="data" type="object">
+  Match results including similar samples and functions
+</ResponseField>
+
+<ResponseExample>
+```json
+{
+  "status": "successful",
+  "data": {
+    "matches": {
+      "sample_matches": {},
+      "function_matches": {}
+    },
+    "info": {
+      "num_functions": 150,
+      "sha256": "abc123..."
+    }
+  }
+}
+```
+</ResponseExample>
+
+## Query with Unmapped Binary
+
+```http
+POST /query/binary
+```
+
+Queries with a raw binary file. MCRIT will attempt to determine the base address automatically.
+
+<ParamField query="minhash_threshold" type="float">
+  Minimum MinHash similarity threshold
+</ParamField>
+
+<ParamField query="pichash_size" type="integer">
+  PicHash size threshold
+</ParamField>
+
+<ParamField body="binary" type="binary" required>
+  Raw binary data
+</ParamField>
+
+<ResponseField name="status" type="string">
+  Response status
+</ResponseField>
+
+<ResponseField name="data" type="object">
+  Match results from the binary analysis
+</ResponseField>
+
+## Query with Mapped Binary
+
+```http
+POST /query/binary/mapped/{base_address}
+```
+
+Queries with a binary file using a specific base address.
+
+<ParamField path="base_address" type="string" required>
+  Base address in hexadecimal (e.g., "0x400000") or decimal
+</ParamField>
+
+<ParamField query="minhash_threshold" type="float">
+  Minimum MinHash similarity threshold
+</ParamField>
+
+<ParamField query="pichash_size" type="integer">
+  PicHash size threshold
+</ParamField>
+
+<ParamField body="binary" type="binary" required>
+  Raw binary data
+</ParamField>
+
+<ResponseField name="status" type="string">
+  Response status
+</ResponseField>
+
+<ResponseField name="data" type="object">
+  Match results from the binary analysis
+</ResponseField>
+
+## Query with SMDA Function
+
+```http
+POST /query/function
+```
+
+Queries with a single function from an SMDA report.
+
+<ParamField query="minhash_threshold" type="float">
+  Minimum MinHash similarity threshold
+</ParamField>
+
+<ParamField query="pichash_size" type="integer">
+  PicHash size threshold
+</ParamField>
+
+<ParamField body="smda_function" type="object" required>
+  SMDA function object in JSON format
+</ParamField>
+
+<ResponseField name="status" type="string">
+  Response status
+</ResponseField>
+
+<ResponseField name="data" type="object">
+  Match results for the function
+</ResponseField>
+
+## Query by PicHash
+
+```http
+GET /query/pichash/{pichash}
+```
+
+Finds all functions with a specific PicHash.
+
+<ParamField path="pichash" type="string" required>
+  PicHash value (16 hexadecimal characters)
+</ParamField>
+
+<ResponseField name="status" type="string">
+  Response status
+</ResponseField>
+
+<ResponseField name="data" type="array">
+  List of tuples containing (family_id, sample_id, function_id) for each match
+</ResponseField>
+
+<ResponseExample>
+```json
+{
+  "status": "successful",
+  "data": [
+    [1, 5, 42],
+    [1, 6, 38],
+    [2, 12, 103]
+  ]
+}
+```
+</ResponseExample>
+
+## Query PicHash Summary
+
+```http
+GET /query/pichash/{pichash}/summary
+```
+
+Returns aggregate statistics for a PicHash.
+
+<ParamField path="pichash" type="string" required>
+  PicHash value (16 hexadecimal characters)
+</ParamField>
+
+<ResponseField name="status" type="string">
+  Response status
+</ResponseField>
+
+<ResponseField name="data" type="object">
+  Summary with counts of families, samples, and functions
+</ResponseField>
+
+<ResponseExample>
+```json
+{
+  "status": "successful",
+  "data": {
+    "families": 2,
+    "samples": 5,
+    "functions": 8
+  }
+}
+```
+</ResponseExample>
+
+## Query by PicBlockHash
+
+```http
+GET /query/picblockhash/{picblockhash}
+```
+
+Finds all basic blocks with a specific PicBlockHash.
+
+<ParamField path="picblockhash" type="string" required>
+  PicBlockHash value (16 hexadecimal characters)
+</ParamField>
+
+<ResponseField name="status" type="string">
+  Response status
+</ResponseField>
+
+<ResponseField name="data" type="array">
+  List of tuples containing (family_id, sample_id, function_id, offset) for each match
+</ResponseField>
+
+## Query PicBlockHash Summary
+
+```http
+GET /query/picblockhash/{picblockhash}/summary
+```
+
+Returns aggregate statistics for a PicBlockHash.
+
+<ParamField path="picblockhash" type="string" required>
+  PicBlockHash value (16 hexadecimal characters)
+</ParamField>
+
+<ResponseField name="status" type="string">
+  Response status
+</ResponseField>
+
+<ResponseField name="data" type="object">
+  Summary with counts of families, samples, functions, and offsets
+</ResponseField>
+
+<ResponseExample>
+```json
+{
+  "status": "successful",
+  "data": {
+    "families": 3,
+    "samples": 12,
+    "functions": 24,
+    "offsets": 36
+  }
+}
+```
+</ResponseExample>

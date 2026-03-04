@@ -1,0 +1,248 @@
+---
+title: Jobs API
+description: Monitor background processing jobs and retrieve results
+---
+
+## List Jobs
+
+```http
+GET /jobs
+```
+
+Returns a list of jobs in the system.
+
+<ParamField query="start" type="integer" default="0">
+  Starting job ID for pagination
+</ParamField>
+
+<ParamField query="limit" type="integer" default="0">
+  Maximum number of jobs to return (0 for all)
+</ParamField>
+
+<ParamField query="ascending" type="boolean" default="false">
+  Sort order by creation time
+</ParamField>
+
+<ParamField query="method" type="string">
+  Filter by job method (e.g., "addBinarySample", "query")
+</ParamField>
+
+<ParamField query="state" type="string">
+  Filter by job state (e.g., "finished", "failed", "processing")
+</ParamField>
+
+<ParamField query="filter" type="string">
+  Additional text filter for job data
+</ParamField>
+
+<ResponseField name="status" type="string">
+  Response status
+</ResponseField>
+
+<ResponseField name="data" type="array">
+  Array of job objects
+</ResponseField>
+
+<ResponseExample>
+```json
+{
+  "status": "successful",
+  "data": [
+    {
+      "job_id": "507f1f77bcf86cd799439011",
+      "method": "addBinarySample",
+      "state": "finished",
+      "created": "2024-01-15T10:30:00",
+      "finished": "2024-01-15T10:31:00"
+    }
+  ]
+}
+```
+</ResponseExample>
+
+## Get Job Statistics
+
+```http
+GET /jobs/stats
+```
+
+Returns statistics about jobs in the system.
+
+<ParamField query="with_refresh" type="boolean" default="false">
+  Refresh statistics before returning
+</ParamField>
+
+<ResponseField name="status" type="string">
+  Response status
+</ResponseField>
+
+<ResponseField name="data" type="object">
+  Statistics including counts by state and method
+</ResponseField>
+
+<ResponseExample>
+```json
+{
+  "status": "successful",
+  "data": {
+    "total_jobs": 150,
+    "finished": 140,
+    "processing": 5,
+    "failed": 5
+  }
+}
+```
+</ResponseExample>
+
+## Get Job
+
+```http
+GET /jobs/{job_id}
+```
+
+Returns information about a specific job.
+
+<ParamField path="job_id" type="string" required>
+  Job ID (24 hexadecimal characters)
+</ParamField>
+
+<ResponseField name="status" type="string">
+  Response status
+</ResponseField>
+
+<ResponseField name="data" type="object">
+  Job details including state, method, timestamps, and parameters
+</ResponseField>
+
+<ResponseExample>
+```json
+{
+  "status": "successful",
+  "data": {
+    "job_id": "507f1f77bcf86cd799439011",
+    "method": "addBinarySample",
+    "state": "finished",
+    "created": "2024-01-15T10:30:00",
+    "finished": "2024-01-15T10:31:00",
+    "parameters": {},
+    "result_id": "507f191e810c19729de860ea"
+  }
+}
+```
+</ResponseExample>
+
+## Delete Job
+
+```http
+DELETE /jobs/{job_id}
+```
+
+Deletes a specific job from the system.
+
+<ParamField path="job_id" type="string" required>
+  Job ID (24 hexadecimal characters)
+</ParamField>
+
+<ResponseField name="status" type="string">
+  Response status
+</ResponseField>
+
+<ResponseField name="data" type="object">
+  Number of jobs deleted
+</ResponseField>
+
+## Delete Multiple Jobs
+
+```http
+DELETE /jobs
+```
+
+Deletes multiple jobs matching the specified criteria.
+
+<ParamField query="method" type="string">
+  Filter by job method
+</ParamField>
+
+<ParamField query="created_before" type="string">
+  Delete jobs created before this date (YYYY-MM-DD or YYYY-MM-DDTHH:MM:SS)
+</ParamField>
+
+<ParamField query="finished_before" type="string">
+  Delete jobs finished before this date (YYYY-MM-DD or YYYY-MM-DDTHH:MM:SS)
+</ParamField>
+
+<ResponseField name="status" type="string">
+  Response status
+</ResponseField>
+
+<ResponseField name="data" type="object">
+  Number of jobs deleted
+</ResponseField>
+
+## Get Job Result
+
+```http
+GET /jobs/{job_id}/result
+```
+
+Returns the result of a completed job.
+
+<ParamField path="job_id" type="string" required>
+  Job ID (24 hexadecimal characters)
+</ParamField>
+
+<ParamField query="compact" type="boolean" default="false">
+  Return compact results (excludes function-level matches for matching/query jobs)
+</ParamField>
+
+<ResponseField name="status" type="string">
+  Response status
+</ResponseField>
+
+<ResponseField name="data" type="object">
+  Job result data (varies by job type)
+</ResponseField>
+
+## Get Result
+
+```http
+GET /results/{result_id}
+```
+
+Returns a result by its ID.
+
+<ParamField path="result_id" type="string" required>
+  Result ID (24 hexadecimal characters)
+</ParamField>
+
+<ParamField query="compact" type="boolean" default="false">
+  Return compact results
+</ParamField>
+
+<ResponseField name="status" type="string">
+  Response status
+</ResponseField>
+
+<ResponseField name="data" type="object">
+  Result data
+</ResponseField>
+
+## Get Job for Result
+
+```http
+GET /results/{result_id}/job
+```
+
+Returns the job that produced a specific result.
+
+<ParamField path="result_id" type="string" required>
+  Result ID (24 hexadecimal characters)
+</ParamField>
+
+<ResponseField name="status" type="string">
+  Response status
+</ResponseField>
+
+<ResponseField name="data" type="object">
+  Job information
+</ResponseField>

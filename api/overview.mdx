@@ -1,0 +1,188 @@
+---
+title: API Overview
+description: Introduction to the MCRIT REST API for binary code similarity analysis
+---
+
+MCRIT provides a RESTful HTTP API for submitting binary samples, querying function similarities, and managing the code analysis index.
+
+## Base URL
+
+By default, the MCRIT server runs on:
+
+```
+http://127.0.0.1:8000
+```
+
+You can configure a different host and port when deploying the server.
+
+## REST Principles
+
+The MCRIT API follows REST conventions:
+
+- **GET** requests retrieve data
+- **POST** requests create new resources or submit queries
+- **PUT** requests update existing resources
+- **DELETE** requests remove resources
+
+All endpoints accept and return JSON data (except for binary upload endpoints which accept raw binary data).
+
+## Response Format
+
+All API responses follow a consistent structure:
+
+```json
+{
+  "status": "successful",
+  "data": {
+    // Response data here
+  }
+}
+```
+
+### Success Response
+
+When a request succeeds, the response includes:
+- `status`: Always `"successful"`
+- `data`: The actual response data (varies by endpoint)
+- HTTP status code: `200` (OK) or `202` (Accepted for async operations)
+
+### Error Response
+
+When a request fails, the response includes:
+- `status`: Typically `"failed"`
+- `data`: May include error details or message
+- HTTP status code: `400` (Bad Request), `404` (Not Found), `500` (Server Error), etc.
+
+<Info>
+HTTP status codes `200` and `202` indicate success. Check the `status` field in the JSON response body for additional information.
+</Info>
+
+## Asynchronous Operations
+
+Many operations in MCRIT are asynchronous and return a `job_id` instead of immediate results:
+
+```json
+{
+  "status": "successful",
+  "data": {
+    "job_id": "abc123",
+    "sample_info": {...}
+  }
+}
+```
+
+You can poll the job status using the `/jobs/{job_id}` endpoint and retrieve results via `/jobs/{job_id}/result` once complete.
+
+## Error Handling
+
+The API uses standard HTTP status codes:
+
+- **200 OK** - Request succeeded
+- **202 Accepted** - Request accepted for async processing
+- **400 Bad Request** - Invalid request parameters or body
+- **401 Unauthorized** - Missing or invalid authentication token
+- **404 Not Found** - Resource not found
+- **410 Gone** - Resource no longer available
+- **500 Internal Server Error** - Server error occurred
+- **501 Not Implemented** - Endpoint not yet implemented
+
+<Warning>
+Always check both the HTTP status code and the `status` field in the JSON response body to properly handle errors.
+</Warning>
+
+## Rate Limiting
+
+MCRIT does not currently implement rate limiting at the API level. However, for production deployments, consider:
+
+- Implementing rate limiting at the reverse proxy level (nginx, Apache)
+- Using the authentication token to track and limit usage per client
+- Monitoring queue statistics via `/jobs/stats` to avoid overwhelming the system
+
+## API Endpoint Categories
+
+The MCRIT API is organized into the following categories:
+
+### Status & Configuration
+- `GET /` - Welcome message
+- `GET /status` - Server statistics and status
+- `GET /version` - Server version information
+- `GET /config` - Configuration (not implemented)
+
+### Data Management
+- `GET /export` - Export all data
+- `GET /export/{sample_ids}` - Export specific samples
+- `POST /import` - Import data
+- `POST /respawn` - Reset the MCRIT instance
+
+### Maintenance
+- `GET /complete_minhashes` - Calculate missing MinHashes
+- `GET /rebuild_index` - Rebuild the entire index
+- `GET /recalculate_pichashes` - Recalculate PIC hashes
+- `GET /recalculate_minhashes` - Recalculate MinHashes
+
+### Search
+- `GET /search/families` - Search family entries
+- `GET /search/samples` - Search sample entries
+- `GET /search/functions` - Search function entries
+
+### Families
+- `GET /families` - List all families
+- `GET /families/{family_id}` - Get family details
+- `PUT /families/{family_id}` - Update family metadata
+- `DELETE /families/{family_id}` - Delete family and optionally samples
+
+### Samples
+- `GET /samples` - List all samples
+- `POST /samples` - Add SMDA report
+- `POST /samples/binary` - Submit binary sample
+- `GET /samples/{sample_id}` - Get sample details
+- `PUT /samples/{sample_id}` - Update sample metadata
+- `DELETE /samples/{sample_id}` - Delete sample
+- `GET /samples/sha256/{sha256}` - Get sample by SHA256
+- `GET /samples/{sample_id}/functions` - Get functions in sample
+
+### Functions
+- `GET /functions` - List all functions
+- `POST /functions` - Get functions by IDs
+- `GET /functions/{function_id}` - Get function details
+
+### Matching
+- `GET /matches/sample/{sample_id}` - Get matches for sample
+- `GET /matches/sample/cross/{sample_ids}` - Cross-match samples
+- `GET /matches/sample/{sample_id}/{sample_id_b}` - Compare two samples
+- `GET /matches/function/{function_id}/{function_id_b}` - Compare two functions
+- `GET /matches/function/{function_id}` - Get matches for function
+
+### Query
+- `POST /query` - Query with SMDA report
+- `POST /query/binary` - Query with unmapped binary
+- `POST /query/binary/mapped/{base_address}` - Query with mapped binary
+- `POST /query/function` - Query with single function
+- `GET /query/pichash/{pichash}` - Query by PIC hash
+- `GET /query/pichash/{pichash}/summary` - Query PIC hash summary
+- `GET /query/picblockhash/{hash}` - Query by PIC block hash
+- `GET /query/picblockhash/{hash}/summary` - Query PIC block hash summary
+
+### Unique Blocks
+- `GET /uniqueblocks/samples/{sample_ids}` - Get unique blocks for samples
+- `GET /uniqueblocks/family/{family_id}` - Get unique blocks for family
+
+### Jobs & Results
+- `GET /jobs` - List jobs
+- `GET /jobs/stats` - Queue statistics
+- `GET /jobs/{job_id}` - Get job details
+- `DELETE /jobs/{job_id}` - Delete job
+- `GET /jobs/{job_id}/result` - Get job result
+- `GET /results/{result_id}` - Get result by ID
+- `GET /results/{result_id}/job` - Get job for result
+
+<Note>
+Detailed documentation for each endpoint category is available in dedicated API reference pages.
+</Note>
+
+## Next Steps
+
+- [Authentication](/api/authentication) - Learn how to authenticate API requests
+- [Python Client](/usage/python-client) - Use the McritClient for easier API access
+- [Samples](/api/samples) - Work with binary samples
+- [Matching](/api/matching) - Query and match code similarities

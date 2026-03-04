@@ -1,80 +1,528 @@
 ---
-title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+title: Quickstart
+description: Get started with MCRIT by submitting samples and running your first analysis
 ---
 
-## Get started in three steps
+## Prerequisites
 
-Get your documentation site running locally and make your first customization.
+Before starting this guide, ensure you have:
+- MCRIT server running on `http://127.0.0.1:8000/`
+- At least one MCRIT worker running
+- MongoDB service active
 
-### Step 1: Set up your local environment
+<Info>
+  If you haven't installed MCRIT yet, follow the [Installation Guide](/installation) first.
+</Info>
 
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
+## Starting MCRIT
+
+MCRIT requires both server and worker components to be running. Start them in separate terminal sessions:
+
+<Steps>
+  <Step title="Start the Server">
+    ```bash
+    mcrit server
+    ```
     
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
+    Expected output:
+    ```
+    [!] Detected linux platform and gunicorn availability. Using gunicorn deployment.
+    [INFO] Starting gunicorn 20.1.0
+    [INFO] Listening at: http://0.0.0.0:8000
+    ```
+  </Step>
+
+  <Step title="Start a Worker">
+    In a new terminal:
+    ```bash
+    mcrit worker
+    ```
     
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
+    The worker will connect to MongoDB and wait for jobs to process.
+  </Step>
 
-### Step 2: Deploy your changes
-
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
+  <Step title="Verify Status">
+    In a third terminal, check the system status:
+    ```bash
+    mcrit client status
+    ```
     
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
-
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
-
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
-
-### Step 3: Go live
-
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
-
-## Next steps
-
-Now that you have your docs running, explore these key features:
-
-<CardGroup cols={2}>
-
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
-
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
-
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
-
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
-
-</CardGroup>
+    Expected output:
+    ```python
+    {'status': {'db_state': 0, 'storage_type': 'mongodb', 'num_bands': 20, 'num_samples': 0, 'num_families': 0, 'num_functions': 0, 'num_pichashes': 0}}
+    ```
+  </Step>
+</Steps>
 
 <Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
+  Keep the server and worker running in their terminals. All subsequent commands should be run in a separate terminal.
 </Note>
+
+## Your First Sample Submission
+
+### Submitting a Binary File
+
+Submit a single binary file for analysis. MCRIT will automatically disassemble it using SMDA.
+
+```bash
+mcrit client submit /path/to/sample.exe -f malware_family
+```
+
+**Example with real malware:**
+```bash
+mcrit client submit sample_unpacked -f some_family
+```
+
+**Expected output:**
+```
+ 1.039s -> (architecture: intel.32bit, base_addr: 0x10000000): 634 functions
+```
+
+This output shows:
+- Processing time: `1.039s`
+- Architecture detected: `intel.32bit`
+- Base address: `0x10000000`
+- Functions extracted: `634`
+
+<Info>
+  MCRIT automatically detects PE and ELF file formats and extracts the base address from the binary headers.
+</Info>
+
+### Submitting Mapped Memory Dumps
+
+If you have a memory dump with a known base address, append the address to the filename:
+
+```bash
+mcrit client submit sample_dump_0x00400000 -f wannacry
+```
+
+The client will recognize the `0x[address]` suffix and use it as the image base:
+
+```
+ 0.906s -> (architecture: intel.32bit, base_addr: 0x00400000): 922 functions
+```
+
+### Submitting Multiple Files
+
+Submit all files in a directory:
+
+```bash
+mcrit client submit --mode dir /path/to/samples/ -f family_name
+```
+
+**Example output:**
+```
+ 0.763s -> (architecture: intel.32bit, base_addr: 0x00400000): 926 functions
+ 0.884s -> (architecture: intel.32bit, base_addr: 0x00400000): 926 functions
+ 1.378s -> (architecture: intel.32bit, base_addr: 0x00400000): 165 functions
+ 0.830s -> (architecture: intel.32bit, base_addr: 0x00400000): 926 functions
+```
+
+### Submitting SMDA Reports
+
+If you already have SMDA disassembly reports, submit them directly without re-disassembling:
+
+```bash
+mcrit client submit --mode file report.smda -f family_name --smda
+```
+
+Or submit a directory of SMDA reports:
+
+```bash
+mcrit client submit --mode dir /path/to/reports/ -f family_name --smda
+```
+
+<Warning>
+  The `--smda` flag only works with `file` and `dir` modes. It tells MCRIT to skip disassembly and import the reports directly.
+</Warning>
+
+## Advanced Submission Options
+
+### Recursive Directory Submission
+
+For organized malware collections with the structure `./family/version/version/files`:
+
+```bash
+mcrit client submit --mode recursive /path/to/collection/
+```
+
+MCRIT will automatically extract family names and versions from the directory structure.
+
+### Filtering Executable Files
+
+Only process PE or ELF executables, skipping other file types:
+
+```bash
+mcrit client submit --mode dir /path/to/mixed_files/ -f family --executables_only
+```
+
+### Library Samples
+
+Mark samples as libraries (useful for building reference databases):
+
+```bash
+mcrit client submit library.dll -f msvcrt --library
+```
+
+### Saving SMDA Reports
+
+Save SMDA disassembly reports while submitting:
+
+```bash
+mcrit client submit sample.exe -f family -o ./reports/
+```
+
+Reports will be saved in the specified output directory for later reuse.
+
+### Using Spawned Workers
+
+For large batch submissions, spawn dedicated workers:
+
+```bash
+mcrit client submit --mode dir /large/collection/ -f family --worker --worker-timeout 600
+```
+
+<Info>
+  Spawned workers process submissions in isolation and terminate after completion, preventing memory buildup.
+</Info>
+
+## Checking Job Status
+
+View all queued and completed jobs:
+
+```bash
+mcrit client queue
+```
+
+**Example output:**
+```
+64243b27f3876416bffad86e 64243b28cbc77c2df4d8d79f | 2023-03-29T13:20:39.065Z 2023-03-29T13:20:39.114Z 2023-03-29T13:20:40.593Z | updateMinHashesForSample(2) - 1
+64131888fbb4d9d4a029164d 6413188c15e4f20d519b35ba | 2023-03-16T13:24:24.707Z 2023-03-16T13:24:24.755Z 2023-03-16T13:24:28.366Z | addBinarySample(None, ca29de1dc8817868c93e54b09f557fe14e40083c0955294df5bd91f52ba469c8_unpacked, win.wannacry, , False, 0, 32) - 1
+```
+
+Each line shows:
+- Job ID and result ID
+- Creation, start, and completion timestamps
+- Job description with parameters
+
+## Viewing Results
+
+### Check System Status
+
+View database statistics:
+
+```bash
+mcrit client status
+```
+
+**After submitting samples:**
+```python
+{'status': {
+  'db_state': 187,
+  'storage_type': 'mongodb',
+  'num_bands': 20,
+  'num_samples': 137,
+  'num_families': 14,
+  'num_functions': 129110,
+  'num_pichashes': 25385
+}}
+```
+
+This shows:
+- `db_state`: Database modification counter
+- `num_samples`: Total samples indexed
+- `num_families`: Distinct malware families
+- `num_functions`: Total functions extracted
+- `num_pichashes`: Unique position-independent code hashes
+- `num_bands`: MinHash bands for indexing (default: 20)
+
+### Search for Samples
+
+Search across families and samples:
+
+```bash
+mcrit client search wannacry
+```
+
+**Example output:**
+```
+Family Search Results
+Family 2 (win.wannacry): 
+********************
+Sample Search Results
+Sample 1 (intel, 32 bit) - ca29de1dc8817868c93e54b09f557fe14e40083c0955294df5bd91f52ba469c8_unpacked (win.wannacry): 
+Sample 2 (intel, 32 bit) - 3e6de9e2baacf930949647c399818e7a2caea2626df6a468407854aaa515eed9 (win.wannacry): 
+********************
+```
+
+## Performing Analysis
+
+### Query Matching
+
+Match a new sample against your database without storing it:
+
+```bash
+mcrit client query /path/to/unknown_sample.exe
+```
+
+This will:
+1. Disassemble the sample
+2. Calculate MinHash signatures
+3. Find similar functions in the database
+4. Return matching results without adding the sample
+
+<Note>
+  Query mode is ideal for triaging unknown samples without polluting your reference database.
+</Note>
+
+### Sample Matching
+
+Match two stored samples against each other:
+
+```bash
+mcrit client match --sample_ids 1,2
+```
+
+This creates an asynchronous matching job. Check the queue to see when it completes:
+
+```bash
+mcrit client queue
+```
+
+### Cross Matching
+
+Match all samples in a family against all samples in another family:
+
+```bash
+mcrit client cross --family_ids 1,2
+```
+
+<Warning>
+  Cross matching can be resource-intensive for large datasets. Use with caution.
+</Warning>
+
+## Exporting and Importing Data
+
+### Export Samples
+
+Export samples to share with other MCRIT instances:
+
+```bash
+mcrit client export --sample_ids 1,2,3 output.mcrit
+```
+
+**Output:**
+```
+wrote export to output.mcrit.
+```
+
+The export file contains:
+- Sample metadata
+- Function information
+- MinHash signatures
+- PicHash data
+- Family relationships
+
+### Import Samples
+
+Import previously exported samples:
+
+```bash
+mcrit client import samples.mcrit
+```
+
+**Output:**
+```
+{'num_samples_imported': 3, 'num_samples_skipped': 0, 'num_functions_imported': 2145, 'num_functions_skipped': 0, 'num_families_imported': 1, 'num_families_skipped': 0}
+```
+
+<Info>
+  MCRIT automatically skips duplicate samples during import based on their SHA256 hashes.
+</Info>
+
+## Configuration with Environment Variables
+
+The MCRIT CLI supports environment variables for server configuration:
+
+```bash
+export MCRIT_CLI_SERVER=http://remote-server:8000
+export MCRIT_CLI_APITOKEN=your_api_token_here
+
+mcrit client status
+```
+
+Or create a `.env` file:
+
+```bash
+MCRIT_CLI_SERVER=http://remote-server:8000
+MCRIT_CLI_APITOKEN=your_api_token_here
+```
+
+### CLI Server and Token Flags
+
+Alternatively, pass them as command-line flags:
+
+```bash
+mcrit client status --server http://remote-server:8000 --apitoken your_token
+```
+
+## Complete Workflow Example
+
+Here's a complete workflow from start to finish:
+
+<Steps>
+  <Step title="Start MCRIT Services">
+    ```bash
+    # Terminal 1: Start server
+    mcrit server
+    
+    # Terminal 2: Start worker
+    mcrit worker
+    ```
+  </Step>
+
+  <Step title="Check Initial Status">
+    ```bash
+    # Terminal 3: Verify clean database
+    mcrit client status
+    ```
+  </Step>
+
+  <Step title="Submit Reference Samples">
+    ```bash
+    # Submit known malware families
+    mcrit client submit --mode dir ~/malware/wannacry/ -f wannacry
+    mcrit client submit --mode dir ~/malware/emotet/ -f emotet
+    mcrit client submit --mode dir ~/malware/trickbot/ -f trickbot
+    ```
+  </Step>
+
+  <Step title="Verify Ingestion">
+    ```bash
+    # Check updated statistics
+    mcrit client status
+    
+    # Search for specific family
+    mcrit client search wannacry
+    ```
+  </Step>
+
+  <Step title="Analyze Unknown Sample">
+    ```bash
+    # Query without storing
+    mcrit client query ~/unknown/suspicious.exe
+    
+    # Or submit and match
+    mcrit client submit ~/unknown/suspicious.exe -f unknown
+    ```
+  </Step>
+
+  <Step title="Export for Sharing">
+    ```bash
+    # Export reference database
+    mcrit client export --sample_ids 1,2,3,4,5 reference_db.mcrit
+    ```
+  </Step>
+</Steps>
+
+## Next Steps
+
+### Using the Python Client
+
+For programmatic access, use the Python client library:
+
+```python
+from mcrit.client.McritClient import McritClient
+
+client = McritClient(mcrit_server="http://127.0.0.1:8000")
+
+# Get status
+status = client.getStatus()
+print(f"Samples in database: {status['status']['num_samples']}")
+
+# Submit a sample
+with open("sample.exe", "rb") as f:
+    result = client.addBinarySample(f.read(), filename="sample.exe", family="malware")
+    print(f"Sample ID: {result['sample_id']}")
+
+# Search
+results = client.getSearch("wannacry")
+for sample in results['samples']:
+    print(f"Found: {sample['filename']}")
+```
+
+### IDA Plugin Integration
+
+For interactive analysis in IDA Pro:
+
+1. Configure the plugin:
+   ```bash
+   cd plugins/ida/
+   cp template.config.py config.py
+   nano config.py  # Set your MCRIT server URL
+   ```
+
+2. Load the plugin in IDA:
+   ```
+   File -> Script file -> plugins/ida/ida_mcrit.py
+   ```
+
+3. Use the plugin to:
+   - Query functions from IDA
+   - Import function labels from MCRIT
+   - View colored graphs of matched functions
+   - Submit current binary for analysis
+
+### Reference Data Integration
+
+Improve your analysis by adding reference data:
+
+```bash
+# Clone the reference data repository
+git clone https://github.com/danielplohmann/mcrit-data.git
+
+# Import common libraries
+mcrit client submit --mode recursive mcrit-data/windows/ --library
+mcrit client submit --mode recursive mcrit-data/compilers/ --library
+```
+
+<Info>
+  Reference data helps identify and filter common library code, making it easier to focus on unique malware functionality.
+</Info>
+
+## Troubleshooting
+
+<Accordion title="Worker not processing jobs">
+  - Verify worker is running: check the terminal for errors
+  - Ensure MongoDB is accessible
+  - Check queue status: `mcrit client queue`
+  - Restart the worker if it appears stuck
+</Accordion>
+
+<Accordion title="Submission fails with SMDA error">
+  - Ensure the file is a valid PE or ELF binary
+  - Try submitting with `--executables_only` flag
+  - Check if the file is packed or obfuscated
+  - Review worker logs for detailed error messages
+</Accordion>
+
+<Accordion title="No matches found">
+  - Verify samples were successfully indexed: `mcrit client status`
+  - Check if MinHash calculation completed: `mcrit client queue`
+  - Ensure sufficient reference data in database
+  - Try adjusting matching parameters (band count, thresholds)
+</Accordion>
+
+<Accordion title="Slow performance">
+  - Start additional workers for parallel processing
+  - Use spawning workers for better memory management
+  - Increase MongoDB resources (RAM, indexes)
+  - Process smaller batches of samples
+</Accordion>
+
+## Additional Resources
+
+- **MCRIT CLI Documentation**: See `docs/mcrit-cli.md` in the source repository for complete CLI reference
+- **MCRIT Client API**: Explore the Python client module for programmatic integration
+- **Reference Data**: Browse [mcrit-data](https://github.com/danielplohmann/mcrit-data) for ready-to-use compiler and library databases
+- **Docker Deployment**: Use [docker-mcrit](https://github.com/danielplohmann/docker-mcrit) for production deployments with web interface

@@ -1,0 +1,94 @@
+---
+title: Blocks API
+description: Analyze unique basic blocks in samples and families
+---
+
+## Get Unique Blocks for Samples
+
+```http
+GET /uniqueblocks/samples/{comma_separated_sample_ids}
+```
+
+Returns unique basic blocks found across the specified samples.
+
+<ParamField path="comma_separated_sample_ids" type="string" required>
+  Comma-separated list of sample IDs (e.g., "1,2,3")
+</ParamField>
+
+<ResponseField name="status" type="string">
+  Response status
+</ResponseField>
+
+<ResponseField name="data" type="object">
+  Unique blocks data including:
+  - Block hashes and characteristics
+  - Sample distribution
+  - Frequency information
+</ResponseField>
+
+<ResponseExample>
+```json
+{
+  "status": "successful",
+  "data": {
+    "unique_blocks": [
+      {
+        "picblockhash": "abcdef0123456789",
+        "sample_ids": [1, 2],
+        "frequency": 2
+      }
+    ],
+    "summary": {
+      "num_unique_blocks": 150,
+      "num_samples": 3
+    }
+  }
+}
+```
+</ResponseExample>
+
+## Get Unique Blocks for Family
+
+```http
+GET /uniqueblocks/family/{family_id}
+```
+
+Returns unique basic blocks found across all samples in a family.
+
+<ParamField path="family_id" type="integer" required>
+  ID of the family
+</ParamField>
+
+<ResponseField name="status" type="string">
+  Response status
+</ResponseField>
+
+<ResponseField name="data" type="object">
+  Unique blocks data for the entire family
+</ResponseField>
+
+<Info>
+  This endpoint analyzes all samples belonging to the specified family and returns blocks that are unique to this family compared to the rest of the database.
+</Info>
+
+<ResponseExample>
+```json
+{
+  "status": "successful",
+  "data": {
+    "unique_blocks": [
+      {
+        "picblockhash": "abcdef0123456789",
+        "sample_ids": [1, 2, 5, 8],
+        "frequency": 4
+      }
+    ],
+    "summary": {
+      "num_unique_blocks": 420,
+      "num_samples": 12,
+      "family_id": 1
+    }
+  }
+}
+```
+</ResponseExample>

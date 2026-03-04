@@ -1,0 +1,156 @@
+---
+title: Families API
+description: Manage malware families and their samples
+---
+
+## List Families
+
+```http
+GET /families
+```
+
+Returns a collection of all families in the system.
+
+<ParamField query="start" type="integer" default="0">
+  Starting index for pagination
+</ParamField>
+
+<ParamField query="limit" type="integer" default="0">
+  Maximum number of families to return (0 for all)
+</ParamField>
+
+<ResponseField name="status" type="string">
+  Response status
+</ResponseField>
+
+<ResponseField name="data" type="object">
+  Dictionary of families keyed by family_id
+</ResponseField>
+
+<ResponseExample>
+```json
+{
+  "status": "successful",
+  "data": {
+    "1": {
+      "family_id": 1,
+      "family_name": "emotet",
+      "num_samples": 42,
+      "is_library": false
+    }
+  }
+}
+```
+</ResponseExample>
+
+## Get Family
+
+```http
+GET /families/{family_id}
+```
+
+Returns detailed information about a specific family.
+
+<ParamField path="family_id" type="integer" required>
+  ID of the family to retrieve
+</ParamField>
+
+<ParamField query="with_samples" type="boolean" default="true">
+  Include detailed sample information in the response
+</ParamField>
+
+<ResponseField name="status" type="string">
+  Response status
+</ResponseField>
+
+<ResponseField name="data" type="object">
+  Family details including metadata and optionally samples
+</ResponseField>
+
+<ResponseExample>
+```json
+{
+  "status": "successful",
+  "data": {
+    "family_id": 1,
+    "family_name": "emotet",
+    "num_samples": 42,
+    "is_library": false,
+    "samples": {
+      "1": {
+        "sample_id": 1,
+        "sha256": "abc123...",
+        "version": "1.0"
+      }
+    }
+  }
+}
+```
+</ResponseExample>
+
+## Update Family
+
+```http
+PUT /families/{family_id}
+```
+
+Updates metadata for an existing family.
+
+<ParamField path="family_id" type="integer" required>
+  ID of the family to update
+</ParamField>
+
+<ParamField body="family_name" type="string">
+  New family name (0-64 alphanumeric chars with single dots, dashes, underscores)
+</ParamField>
+
+<ParamField body="is_library" type="boolean">
+  Whether the family is a library
+</ParamField>
+
+<ResponseField name="status" type="string">
+  Response status
+</ResponseField>
+
+<ResponseField name="data" type="object">
+  Confirmation message
+</ResponseField>
+
+<ResponseExample>
+```json
+{
+  "status": "successful",
+  "data": {
+    "message": "Family modified."
+  }
+}
+```
+</ResponseExample>
+
+## Delete Family
+
+```http
+DELETE /families/{family_id}
+```
+
+Deletes a family and optionally its samples.
+
+<ParamField path="family_id" type="integer" required>
+  ID of the family to delete
+</ParamField>
+
+<ParamField query="keep_samples" type="boolean" default="false">
+  Keep samples but remove them from the family
+</ParamField>
+
+<ResponseField name="status" type="string">
+  Response status
+</ResponseField>
+
+<ResponseField name="data" type="boolean">
+  Whether the deletion was successful
+</ResponseField>
+
+<Warning>
+  By default, deleting a family also deletes all its samples. Set `keep_samples=true` to preserve samples.
+</Warning>

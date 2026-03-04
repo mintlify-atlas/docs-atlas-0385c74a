@@ -1,0 +1,184 @@
+---
+title: "McritClient"
+description: "Python client for interacting with MCRIT API"
+---
+
+## Overview
+
+The `McritClient` class provides a comprehensive Python interface for interacting with the MCRIT (Malware Code Reuse Identification Tool) API. It handles all communication with the MCRIT server, including sample submission, family management, function analysis, and matching operations.
+
+## Installation
+
+The McritClient is part of the MCRIT package. Install it using pip:
+
+```bash
+pip install mcrit
+```
+
+## Initialization
+
+Create a client instance by importing and initializing the `McritClient` class:
+
+```python
+from mcrit.client.McritClient import McritClient
+
+# Basic initialization (connects to localhost:8000)
+client = McritClient()
+
+# Connect to a remote server
+client = McritClient(mcrit_server="http://mcrit.example.com:8000")
+
+# With authentication
+client = McritClient(
+    mcrit_server="http://mcrit.example.com:8000",
+    apitoken="your-api-token",
+    username="your-username"
+)
+
+# Enable raw responses (returns requests.Response objects)
+client = McritClient(raw_responses=True)
+```
+
+### Constructor Parameters
+
+<ParamField path="mcrit_server" type="str" default="http://localhost:8000">
+  URL of the MCRIT server to connect to
+</ParamField>
+
+<ParamField path="apitoken" type="str" optional>
+  API token for authentication. If provided, it will be included in request headers
+</ParamField>
+
+<ParamField path="username" type="str" optional>
+  Username for authentication. If provided, it will be included in request headers
+</ParamField>
+
+<ParamField path="raw_responses" type="bool" default={false}>
+  If True, methods return raw `requests.Response` objects instead of parsed data
+</ParamField>
+
+## Basic Usage
+
+### Checking Server Status
+
+```python
+from mcrit.client.McritClient import McritClient
+
+client = McritClient(mcrit_server="http://localhost:8000")
+
+# Get server status
+status = client.getStatus()
+print(f"Server status: {status}")
+
+# Get server version
+version = client.getVersion()
+print(f"MCRIT version: {version}")
+```
+
+### Adding a Binary Sample
+
+```python
+# Read a binary file
+with open("malware.exe", "rb") as f:
+    binary_data = f.read()
+
+# Submit the binary for analysis
+result = client.addBinarySample(
+    binary=binary_data,
+    filename="malware.exe",
+    family="emotet",
+    version="2023.1"
+)
+
+print(f"Sample added: {result}")
+```
+
+### Querying for Matches
+
+```python
+from smda.Disassembler import Disassembler
+
+# Disassemble a binary locally
+disassembler = Disassembler()
+report = disassembler.disassembleFile("unknown_sample.exe")
+
+# Request matches for the report
+job_id = client.requestMatchesForSmdaReport(report)
+
+# Wait for results
+result = client.awaitResult(job_id)
+
+if result:
+    print(f"Found matches: {result}")
+```
+
+## Connection Setup
+
+You can update authentication credentials after initialization:
+
+```python
+client = McritClient()
+
+# Set API token
+client.setApitoken("your-new-token")
+
+# Set username
+client.setUsername("your-username")
+```
+
+## Error Handling
+
+The client handles HTTP errors gracefully:
+
+- **500/501**: Server errors are logged as warnings
+- **400/404/410**: Client errors return `None` for most methods
+- **200/202**: Successful responses return parsed data
+
+```python
+try:
+    sample = client.getSampleById(12345)
+    if sample is None:
+        print("Sample not found")
+    else:
+        print(f"Found sample: {sample.filename}")
+except Exception as e:
+    print(f"Error: {e}")
+```
+
+### Job Termination
+
+When waiting for job results, handle potential job termination:
+
+```python
+from mcrit.client.McritClient import McritClient, JobTerminatedError
+
+client = McritClient()
+
+try:
+    result = client.awaitResult(job_id)
+    print(f"Job completed: {result}")
+except JobTerminatedError:
+    print("Job was terminated before completion")
+```
+
+## Return Types
+
+By default, the client parses responses and returns typed objects:
+
+- **SampleEntry**: Sample metadata and information
+- **FamilyEntry**: Malware family information with samples
+- **FunctionEntry**: Function-level analysis data
+- **Job**: Job status and execution information
+
+When `raw_responses=True`, all methods return `requests.Response` objects.
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Method Reference" icon="code" href="/api/client/methods">
+    Explore all available client methods
+  </Card>
+  <Card title="API Endpoints" icon="server" href="/api/overview">
+    Learn about the underlying REST API
+  </Card>
+</CardGroup>

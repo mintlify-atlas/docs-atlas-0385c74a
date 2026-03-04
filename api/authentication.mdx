@@ -1,0 +1,302 @@
+---
+title: API Authentication
+description: Securing your MCRIT API with token-based authentication
+---
+
+MCRIT supports optional token-based authentication to secure API access. When enabled, all API requests must include a valid authentication token.
+
+## Authentication Mechanism
+
+MCRIT uses a simple token-based authentication system implemented via the `AuthMiddleware` class in `application_routes.py:25-53`.
+
+### How It Works
+
+1. Server checks if `McritConfig.AUTH_TOKEN` is configured (non-empty)
+2. If authentication is disabled (`AUTH_TOKEN` is `None` or `""`), all requests are allowed
+3. If authentication is enabled, requests must include an `apitoken` header
+4. The middleware validates the token against the configured value
+
+<Info>
+Authentication is optional and disabled by default. Set `AUTH_TOKEN` to enable it.
+</Info>
+
+## Setting Up Authentication
+
+### Configure Server Token
+
+Set the authentication token in your MCRIT configuration:
+
+```python
+from mcrit.config.McritConfig import McritConfig
+
+# Set the authentication token
+McritConfig.AUTH_TOKEN = "your-secret-token-here"
+```
+
+Alternatively, you can set it via environment variable or configuration file before starting the server.
+
+<Warning>
+Use a strong, randomly generated token in production. Never commit tokens to version control.
+</Warning>
+
+### Generate a Secure Token
+
+Generate a secure random token using Python:
+
+```python
+import secrets
+
+# Generate a 32-byte token
+token = secrets.token_urlsafe(32)
+print(token)
+```
+
+## Making Authenticated Requests
+
+### Using the apitoken Header
+
+Include the `apitoken` header in all API requests:
+
+**Header Format:**
+```
+apitoken: your-secret-token-here
+```
+
+### Using curl
+
+Example authenticated request with curl:
+
+```bash
+curl -H "apitoken: your-secret-token-here" \
+  http://127.0.0.1:8000/status
+```
+
+Submit a binary sample:
+
+```bash
+curl -X POST \
+  -H "apitoken: your-secret-token-here" \
+  -H "Content-Type: application/octet-stream" \
+  --data-binary @sample.exe \
+  "http://127.0.0.1:8000/samples/binary?filename=sample.exe&family=malware"
+```
+
+Get samples with authentication:
+
+```bash
+curl -H "apitoken: your-secret-token-here" \
+  http://127.0.0.1:8000/samples
+```
+
+### Using Python Requests
+
+Example with the `requests` library:
+
+```python
+import requests
+
+API_BASE = "http://127.0.0.1:8000"
+API_TOKEN = "your-secret-token-here"
+
+headers = {
+    "apitoken": API_TOKEN
+}
+
+# Get status
+response = requests.get(f"{API_BASE}/status", headers=headers)
+print(response.json())
+
+# Get samples
+response = requests.get(f"{API_BASE}/samples", headers=headers)
+samples = response.json()
+```
+
+Submit a SMDA report:
+
+```python
+import requests
+import json
+
+API_BASE = "http://127.0.0.1:8000"
+API_TOKEN = "your-secret-token-here"
+
+headers = {
+    "apitoken": API_TOKEN
+}
+
+# Load SMDA report
+with open("report.json", "r") as f:
+    smda_report = json.load(f)
+
+# Submit to MCRIT
+response = requests.post(
+    f"{API_BASE}/samples",
+    json=smda_report,
+    headers=headers
+)
+
+result = response.json()
+if result["status"] == "successful":
+    print(f"Sample added: {result['data']['sample_info']['sample_id']}")
+    print(f"Job ID: {result['data']['job_id']}")
+```
+
+### Using McritClient
+
+The recommended way to interact with MCRIT is using the `McritClient` class from `mcrit.client.McritClient:56-68`:
+
+```python
+from mcrit.client.McritClient import McritClient
+
+# Initialize client with authentication
+client = McritClient(
+    mcrit_server="http://127.0.0.1:8000",
+    apitoken="your-secret-token-here"
+)
+
+# The client automatically includes the token in all requests
+status = client.getStatus()
+samples = client.getSamples()
+version = client.getVersion()
+```
+
+Set token after initialization:
+
+```python
+from mcrit.client.McritClient import McritClient
+
+# Initialize without token
+client = McritClient(mcrit_server="http://127.0.0.1:8000")
+
+# Set token later
+client.setApitoken("your-secret-token-here")
+
+# Now make authenticated requests
+status = client.getStatus()
+```
+
+Submit a binary sample:
+
+```python
+from mcrit.client.McritClient import McritClient
+
+client = McritClient(
+    mcrit_server="http://127.0.0.1:8000",
+    apitoken="your-secret-token-here"
+)
+
+# Read binary file
+with open("sample.exe", "rb") as f:
+    binary = f.read()
+
+# Submit to MCRIT
+result = client.addBinarySample(
+    binary=binary,
+    filename="sample.exe",
+    family="malware",
+    version="1.0"
+)
+
+print(f"Sample added: {result}")
+```
+
+<Note>
+The McritClient handles authentication headers automatically. See the [Python Client](/usage/python-client) guide for more examples.
+</Note>
+
+## Authentication Errors
+
+When authentication fails, the API returns a `401 Unauthorized` response:
+
+### Missing Token
+
+If the `apitoken` header is missing:
+
+```json
+{
+  "title": "API token required",
+  "description": "Please provide an auth token as part of the request."
+}
+```
+
+HTTP Status: `401 Unauthorized`
+
+### Invalid Token
+
+If the token doesn't match the configured value:
+
+```json
+{
+  "title": "Authentication required",
+  "description": "The provided API token is not valid. Please request a new token and try again."
+}
+```
+
+HTTP Status: `401 Unauthorized`
+
+## Username Header (Optional)
+
+MCRIT also supports an optional `username` header for tracking purposes:
+
+```bash
+curl -H "apitoken: your-secret-token-here" \
+     -H "username: analyst1" \
+     http://127.0.0.1:8000/status
+```
+
+With McritClient:
+
+```python
+client = McritClient(
+    mcrit_server="http://127.0.0.1:8000",
+    apitoken="your-secret-token-here",
+    username="analyst1"
+)
+```
+
+Or set it later:
+
+```python
+client.setUsername("analyst1")
+```
+
+<Info>
+The `username` header does not affect authentication. It's used for logging and tracking API usage.
+</Info>
+
+## Security Best Practices
+
+### Token Management
+
+1. **Use HTTPS in production** - Always use TLS/SSL to encrypt API traffic
+2. **Generate strong tokens** - Use cryptographically secure random tokens (32+ bytes)
+3. **Rotate tokens regularly** - Change tokens periodically and after suspected compromise
+4. **Store tokens securely** - Use environment variables or secret management systems
+5. **Never commit tokens** - Add configuration files with tokens to `.gitignore`
+
+### Server Configuration
+
+```python
+# Good: Load from environment variable
+import os
+from mcrit.config.McritConfig import McritConfig
+
+McritConfig.AUTH_TOKEN = os.environ.get("MCRIT_AUTH_TOKEN", "")
+```
+
+```bash
+# Set token via environment variable
+export MCRIT_AUTH_TOKEN="your-secure-token"
+python -m mcrit.server.MCRITServer
+```
+
+<Warning>
+If you disable authentication by setting `AUTH_TOKEN` to an empty string or `None`, anyone with network access can use your MCRIT API. Only disable authentication in trusted, isolated environments.
+</Warning>
+
+## Next Steps
+
+- [API Overview](/api/overview) - Learn about API structure and endpoints
+- [Python Client](/usage/python-client) - Use the McritClient for easier development
+- [Samples](/api/samples) - Submit and manage binary samples
+- [Matching](/api/matching) - Query code similarities

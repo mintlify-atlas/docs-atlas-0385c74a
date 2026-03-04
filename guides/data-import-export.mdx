@@ -1,0 +1,546 @@
+---
+title: Data Import/Export Guide
+description: Manage bulk data operations, backup, and synchronization with MCRIT's import/export functionality
+---
+
+MCRIT supports exporting data to portable files and importing them into other MCRIT instances. This enables backup, data sharing, migration, and synchronization across multiple deployments.
+
+## Overview
+
+The MCRIT export format is a JSON-based structure containing:
+- Sample metadata (SHA256, family, version, architecture)
+- Function information (offsets, names, labels)
+- MinHash signatures
+- PicHash values
+- Family relationships
+- Configuration metadata
+
+Exported data can be compressed to reduce file size and is designed for efficient bulk operations.
+
+## Export Command
+
+### Using the CLI
+
+#### Export All Data
+
+Export the entire MCRIT database:
+
+```bash
+mcrit client export full_backup.mcrit
+```
+
+Example output:
+```
+wrote export to full_backup.mcrit.
+```
+
+#### Export Specific Samples
+
+Export only selected samples by ID:
+
+```bash
+mcrit client export samples_subset.mcrit --sample_ids 1,2,3,5,8
+```
+
+This creates a smaller export containing only the specified samples and their functions.
+
+### Using the Python Client
+
+#### Export All Data
+
+```python
+from mcrit.client.McritClient import McritClient
+import json
+
+client = McritClient()
+
+# Export with compression
+export_data = client.getExportData(compress_data=True)
+
+# Save to file
+with open("backup.mcrit", "w") as f:
+    json.dump(export_data, f, indent=1)
+
+print(f"Exported {export_data['content']['num_samples']} samples")
+print(f"Total functions: {export_data['content']['num_functions']}")
+```
+
+#### Export Specific Samples
+
+```python
+# Export samples 1, 2, and 3
+sample_ids = [1, 2, 3]
+export_data = client.getExportData(sample_ids=sample_ids, compress_data=True)
+
+with open("samples_1_2_3.mcrit", "w") as f:
+    json.dump(export_data, f, indent=1)
+```
+
+#### Export Without Compression
+
+For human-readable exports or debugging:
+
+```python
+export_data = client.getExportData(compress_data=False)
+
+with open("readable_export.mcrit", "w") as f:
+    json.dump(export_data, f, indent=2, sort_keys=True)
+```
+
+## Import Command
+
+### Using the CLI
+
+Import data from an MCRIT export file:
+
+```bash
+mcrit client import backup.mcrit
+```
+
+Example output:
+```
+{'num_samples_imported': 5, 'num_samples_skipped': 1, 'num_functions_imported': 1234, 'num_functions_skipped': 214, 'num_families_imported': 2, 'num_families_skipped': 1}
+```
+
+### Using the Python Client
+
+```python
+from mcrit.client.McritClient import McritClient
+import json
+
+client = McritClient()
+
+# Load export file
+with open("backup.mcrit", "r") as f:
+    import_data = json.load(f)
+
+# Import into MCRIT
+result = client.addImportData(import_data)
+
+print(f"Samples imported: {result['num_samples_imported']}")
+print(f"Samples skipped: {result['num_samples_skipped']}")
+print(f"Functions imported: {result['num_functions_imported']}")
+print(f"Functions skipped: {result['num_functions_skipped']}")
+print(f"Families imported: {result['num_families_imported']}")
+print(f"Families skipped: {result['num_families_skipped']}")
+```
+
+## MCRIT File Format
+
+### Structure Overview
+
+The MCRIT export format has the following structure:
+
+```json
+{
+  "content": {
+    "is_compressed": true,
+    "num_families": 1,
+    "num_samples": 1,
+    "num_functions": 214
+  },
+  "config": {
+    "version": "0.19.0",
+    "shingler": "7ae53d3b2514730a4d48f993a3e4cd6c6d4a5ca26f93bbed98e0f498295552de",
+    "minhash_config": { ... },
+    "shingler_config": { ... }
+  },
+  "families": { ... },
+  "samples": { ... },
+  "functions": { ... }
+}
+```
+
+### Content Metadata
+
+```json
+"content": {
+  "is_compressed": true,
+  "num_families": 1,
+  "num_samples": 5,
+  "num_functions": 1234
+}
+```
+
+<ResponseField name="is_compressed" type="boolean">
+  Whether function data is compressed using gzip
+</ResponseField>
+
+<ResponseField name="num_families" type="integer">
+  Number of malware families in the export
+</ResponseField>
+
+<ResponseField name="num_samples" type="integer">
+  Number of samples in the export
+</ResponseField>
+
+<ResponseField name="num_functions" type="integer">
+  Total number of functions across all samples
+</ResponseField>
+
+### Configuration Metadata
+
+The export includes configuration information to ensure compatibility:
+
+```json
+"config": {
+  "version": "1.4.6",
+  "shingler": "<hash>",
+  "minhash_config": {
+    "MINHASH_SIGNATURE_BITS": 64,
+    "MINHASH_PERMUTATIONS": 128,
+    "MINHASH_BANDS": 20
+  },
+  "shingler_config": {
+    "SHINGLER_TYPE": "instruction",
+    "SHINGLE_SIZE": 4
+  }
+}
+```
+
+<Warning>
+  Importing data generated with different shingler or MinHash configurations may result in incompatible hashes and reduced matching accuracy.
+</Warning>
+
+### Sample Data Structure
+
+Each sample includes:
+
+```json
+"samples": {
+  "1": {
+    "sample_id": 1,
+    "sha256": "ca29de1dc8817868c93e54b09f557fe14e40083c0955294df5bd91f52ba469c8",
+    "filename": "sample_unpacked",
+    "family": "win.wannacry",
+    "version": "vt-2017-05",
+    "is_library": false,
+    "architecture": "intel",
+    "bitness": 32,
+    "base_addr": "0x400000",
+    "statistics": {
+      "num_functions": 922,
+      "num_instructions": 45123
+    }
+  }
+}
+```
+
+### Function Data Structure
+
+Each function includes:
+
+```json
+"functions": {
+  "1": {
+    "function_id": 1,
+    "sample_id": 1,
+    "offset": "0x401000",
+    "function_name": "sub_401000",
+    "function_labels": [
+      {
+        "label": "CreateProcessW",
+        "username": "analyst",
+        "timestamp": "2023-03-15T10:30:00Z"
+      }
+    ],
+    "num_instructions": 156,
+    "num_blocks": 12,
+    "minhash": [...],
+    "pichash": "0x1234567890abcdef",
+    "picblockhashes": [...]
+  }
+}
+```
+
+## Bulk Operations
+
+### Exporting by Family
+
+Export all samples belonging to a specific family:
+
+```python
+from mcrit.client.McritClient import McritClient
+import json
+
+client = McritClient()
+
+# Get family and its samples
+family = client.getFamily(family_id=1, with_samples=True)
+
+# Extract sample IDs
+sample_ids = [sample.sample_id for sample in family.samples]
+
+# Export
+export_data = client.getExportData(sample_ids=sample_ids)
+
+with open(f"{family.family_name}_export.mcrit", "w") as f:
+    json.dump(export_data, f, indent=1)
+
+print(f"Exported {len(sample_ids)} samples from {family.family_name}")
+```
+
+### Batch Export by Date
+
+Export samples added after a certain date:
+
+```python
+# Get all samples
+samples = client.getSamples()
+
+# Filter by criteria (you'd need to add timestamp tracking)
+recent_sample_ids = [
+    sample_id for sample_id, sample in samples.items()
+    # Add your filtering logic here
+]
+
+# Export recent samples
+export_data = client.getExportData(sample_ids=recent_sample_ids)
+```
+
+### Selective Import
+
+Filter data before importing:
+
+```python
+import json
+
+# Load export
+with open("source.mcrit", "r") as f:
+    data = json.load(f)
+
+# Filter to only specific families
+target_families = ["win.wannacry", "win.emotet"]
+
+# Filter samples
+filtered_samples = {
+    sid: sdata for sid, sdata in data["samples"].items()
+    if sdata["family"] in target_families
+}
+
+# Update content metadata
+data["samples"] = filtered_samples
+data["content"]["num_samples"] = len(filtered_samples)
+
+# Import filtered data
+result = client.addImportData(data)
+```
+
+## Migration Workflows
+
+### Migrating Between Servers
+
+1. **Export from source server**:
+
+```bash
+mcrit client export --server http://old-server:8000 full_export.mcrit
+```
+
+2. **Import to target server**:
+
+```bash
+mcrit client import --server http://new-server:8000 full_export.mcrit
+```
+
+### Incremental Synchronization
+
+Keep two MCRIT instances synchronized:
+
+```python
+# Connect to both servers
+source = McritClient(mcrit_server="http://source:8000")
+target = McritClient(mcrit_server="http://target:8000")
+
+# Get samples from both
+source_samples = source.getSamples()
+target_samples = target.getSamples()
+
+# Find missing samples
+target_sha256s = {s.sha256 for s in target_samples.values()}
+missing_ids = [
+    sid for sid, s in source_samples.items()
+    if s.sha256 not in target_sha256s
+]
+
+if missing_ids:
+    # Export missing samples
+    export_data = source.getExportData(sample_ids=missing_ids)
+    
+    # Import to target
+    result = target.addImportData(export_data)
+    print(f"Synchronized {result['num_samples_imported']} samples")
+```
+
+## Reference Data
+
+### MCRIT-Data Repository
+
+The [mcrit-data repository](https://github.com/danielplohmann/mcrit-data) provides ready-to-use reference data:
+
+- **Compiler Libraries**: Common runtime libraries (MSVC, MinGW, etc.)
+- **System Libraries**: Windows API, libc, etc.
+- **Framework Code**: .NET Framework, Qt, Boost, etc.
+
+#### Using MCRIT-Data
+
+1. **Clone the repository**:
+
+```bash
+git clone https://github.com/danielplohmann/mcrit-data.git
+cd mcrit-data
+```
+
+2. **Import reference data**:
+
+```bash
+# Import MSVC runtime
+mcrit client import msvc/msvc_2019_x64.mcrit
+
+# Import multiple libraries
+for file in libraries/*.mcrit; do
+    mcrit client import "$file"
+done
+```
+
+3. **Verify import**:
+
+```bash
+mcrit client status
+```
+
+### Building Custom Reference Data
+
+Create your own reference data collections:
+
+```python
+from mcrit.client.McritClient import McritClient
+import json
+import os
+
+client = McritClient()
+
+# Submit library samples with proper tagging
+for lib_file in os.listdir("/path/to/libraries"):
+    filepath = os.path.join("/path/to/libraries", lib_file)
+    
+    with open(filepath, "rb") as f:
+        binary = f.read()
+    
+    client.addBinarySample(
+        binary=binary,
+        filename=lib_file,
+        family=f"lib.{lib_file.split('.')[0]}",
+        version="1.0",
+        is_library=True
+    )
+
+# Export as reference data
+lib_samples = client.getSamples()
+lib_ids = [
+    sid for sid, s in lib_samples.items()
+    if s.is_library
+]
+
+export_data = client.getExportData(sample_ids=lib_ids)
+
+with open("custom_libraries.mcrit", "w") as f:
+    json.dump(export_data, f, indent=1)
+```
+
+## Performance Considerations
+
+<AccordionGroup>
+  <Accordion title="Export Size">
+    **Compressed exports** can be 10-50x smaller than uncompressed
+    
+    - Always use `compress_data=True` for large exports
+    - Single sample: ~10-100 KB compressed
+    - 1000 samples: ~50-500 MB compressed
+    - Full Malpedia: Several GB compressed
+  </Accordion>
+
+  <Accordion title="Import Speed">
+    **Import performance** depends on:
+    
+    - Number of samples (linear scaling)
+    - Function count per sample
+    - MinHash calculation overhead
+    - Database write speed
+    
+    Typical speeds:
+    - ~10-50 samples per minute on modern hardware
+    - Parallelization can improve performance
+  </Accordion>
+
+  <Accordion title="Memory Usage">
+    **Peak memory** during operations:
+    
+    - Export: 2-3x the final file size
+    - Import: 3-4x the input file size
+    - Consider splitting very large exports
+    - Monitor server resources during operations
+  </Accordion>
+
+  <Accordion title="Network Transfer">
+    **For remote operations**:
+    
+    - Use compression to reduce bandwidth
+    - Consider rate limiting for large transfers
+    - Split exports if connection is unstable
+    - Use secure channels (HTTPS, VPN) for sensitive data
+  </Accordion>
+</AccordionGroup>
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Regular Backups" icon="floppy-disk">
+    - Schedule automated exports
+    - Store backups in multiple locations
+    - Test restoration periodically
+    - Keep historical snapshots
+  </Card>
+
+  <Card title="Version Control" icon="code-branch">
+    - Track MCRIT version used
+    - Note configuration changes
+    - Document import sources
+    - Maintain compatibility matrix
+  </Card>
+
+  <Card title="Data Organization" icon="folder-tree">
+    - Export by family or category
+    - Use descriptive filenames
+    - Include timestamps in names
+    - Document export contents
+  </Card>
+
+  <Card title="Validation" icon="check">
+    - Verify export integrity
+    - Check import results
+    - Compare sample counts
+    - Validate key samples
+  </Card>
+</CardGroup>
+
+## Troubleshooting
+
+<Warning>
+  **Version Mismatch**: Imports may fail if shingler or MinHash configurations differ between source and target
+</Warning>
+
+**Solution**: Recalculate hashes after import:
+```python
+client.recalculateMinHashes()
+client.recalculatePicHashes()
+```
+
+**Duplicate Detection**: MCRIT automatically skips samples that already exist (matched by SHA256)
+
+**Partial Imports**: If import fails midway, already-imported data remains in the database. Delete or re-run import as needed.
+
+## See Also
+
+- [CLI Guide](/guides/cli) - Command-line interface for exports
+- [Python Client Guide](/guides/python-client) - Programmatic export/import
+- [MCRIT-Data Repository](https://github.com/danielplohmann/mcrit-data) - Reference data collections

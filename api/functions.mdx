@@ -1,0 +1,137 @@
+---
+title: Functions API
+description: Access function-level analysis and metadata
+---
+
+## List Functions
+
+```http
+GET /functions
+```
+
+Returns a collection of functions in the system.
+
+<ParamField query="start" type="integer" default="0">
+  Starting index for pagination
+</ParamField>
+
+<ParamField query="limit" type="integer" default="0">
+  Maximum number of functions to return (0 for all)
+</ParamField>
+
+<ResponseField name="status" type="string">
+  Response status
+</ResponseField>
+
+<ResponseField name="data" type="object">
+  Dictionary of functions keyed by function_id
+</ResponseField>
+
+<ResponseExample>
+```json
+{
+  "status": "successful",
+  "data": {
+    "1": {
+      "function_id": 1,
+      "sample_id": 1,
+      "offset": 4096,
+      "function_name": "sub_1000",
+      "num_instructions": 250,
+      "pichash": "abcdef0123456789"
+    }
+  }
+}
+```
+</ResponseExample>
+
+## Get Function
+
+```http
+GET /functions/{function_id}
+```
+
+Returns detailed information about a specific function.
+
+<ParamField path="function_id" type="integer" required>
+  ID of the function to retrieve
+</ParamField>
+
+<ParamField query="with_xcfg" type="boolean" default="false">
+  Include extended control flow graph data
+</ParamField>
+
+<ResponseField name="status" type="string">
+  Response status
+</ResponseField>
+
+<ResponseField name="data" type="object">
+  Function details including:
+  - Basic metadata (function_id, sample_id, offset)
+  - Hashes (PicHash, MinHash)
+  - Statistics (num_instructions, num_blocks)
+  - Optionally extended CFG data
+</ResponseField>
+
+<ResponseExample>
+```json
+{
+  "status": "successful",
+  "data": {
+    "function_id": 1,
+    "sample_id": 1,
+    "offset": 4096,
+    "function_name": "sub_1000",
+    "num_instructions": 250,
+    "num_blocks": 15,
+    "pichash": "abcdef0123456789",
+    "minhash": [123, 456, 789],
+    "function_labels": ["crypto", "encryption"]
+  }
+}
+```
+</ResponseExample>
+
+## Get Multiple Functions
+
+```http
+POST /functions
+```
+
+Returns information for multiple functions specified by their IDs.
+
+<ParamField query="with_label_only" type="boolean" default="false">
+  Only return functions that have labels
+</ParamField>
+
+<ParamField body="function_ids" type="string" required>
+  Comma-separated list of function IDs (e.g., "1,2,3,4")
+</ParamField>
+
+<ResponseField name="status" type="string">
+  Response status
+</ResponseField>
+
+<ResponseField name="data" type="object">
+  Dictionary of functions keyed by function_id
+</ResponseField>
+
+<ResponseExample>
+```json
+{
+  "status": "successful",
+  "data": {
+    "1": {
+      "function_id": 1,
+      "function_name": "sub_1000",
+      "function_labels": ["crypto"]
+    },
+    "2": {
+      "function_id": 2,
+      "function_name": "sub_2000",
+      "function_labels": ["network"]
+    }
+  }
+}
+```
+</ResponseExample>

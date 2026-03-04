@@ -1,0 +1,170 @@
+---
+title: Matching API
+description: Compare samples and functions to find similarities
+---
+
+## Get Sample Matches
+
+```http
+GET /matches/sample/{sample_id}
+```
+
+Returns all matches for a specific sample against the entire database.
+
+<ParamField path="sample_id" type="integer" required>
+  ID of the sample to match
+</ParamField>
+
+<ParamField query="minhash_threshold" type="float">
+  Minimum MinHash similarity threshold (0.0 to 1.0)
+</ParamField>
+
+<ParamField query="pichash_size" type="integer">
+  PicHash size threshold
+</ParamField>
+
+<ParamField query="band_matches_required" type="integer">
+  Minimum number of band matches required
+</ParamField>
+
+<ResponseField name="status" type="string">
+  Response status
+</ResponseField>
+
+<ResponseField name="data" type="object">
+  Match results including:
+  - Matched samples with similarity scores
+  - Function-level matches
+  - Aggregated statistics
+</ResponseField>
+
+<ResponseExample>
+```json
+{
+  "status": "successful",
+  "data": {
+    "sample_matches": {
+      "2": {
+        "sample_id": 2,
+        "family": "emotet",
+        "matched_functions": 42,
+        "score": 0.85
+      }
+    }
+  }
+}
+```
+</ResponseExample>
+
+## Cross Match Samples
+
+```http
+GET /matches/sample/cross/{sample_ids}
+```
+
+Performs pairwise matching between multiple samples.
+
+<ParamField path="sample_ids" type="string" required>
+  Comma-separated list of sample IDs (e.g., "1,2,3")
+</ParamField>
+
+<ParamField query="minhash_threshold" type="float">
+  Minimum MinHash similarity threshold
+</ParamField>
+
+<ParamField query="pichash_size" type="integer">
+  PicHash size threshold
+</ParamField>
+
+<ResponseField name="status" type="string">
+  Response status
+</ResponseField>
+
+<ResponseField name="data" type="object">
+  Cross-match matrix showing similarities between all sample pairs
+</ResponseField>
+
+## Match Sample vs Sample
+
+```http
+GET /matches/sample/{sample_id}/{sample_id_b}
+```
+
+Compares two specific samples.
+
+<ParamField path="sample_id" type="integer" required>
+  ID of the first sample
+</ParamField>
+
+<ParamField path="sample_id_b" type="integer" required>
+  ID of the second sample
+</ParamField>
+
+<ParamField query="minhash_threshold" type="float">
+  Minimum MinHash similarity threshold
+</ParamField>
+
+<ParamField query="pichash_size" type="integer">
+  PicHash size threshold
+</ParamField>
+
+<ResponseField name="status" type="string">
+  Response status
+</ResponseField>
+
+<ResponseField name="data" type="object">
+  Detailed match results between the two samples
+</ResponseField>
+
+## Match Function vs Function
+
+```http
+GET /matches/function/{function_id}/{function_id_b}
+```
+
+Compares two specific functions.
+
+<ParamField path="function_id" type="integer" required>
+  ID of the first function
+</ParamField>
+
+<ParamField path="function_id_b" type="integer" required>
+  ID of the second function
+</ParamField>
+
+<ResponseField name="status" type="string">
+  Response status
+</ResponseField>
+
+<ResponseField name="data" type="object">
+  Match details including:
+  - MinHash similarity
+  - PicHash comparison
+  - Instruction sequence alignment
+</ResponseField>
+
+<ResponseExample>
+```json
+{
+  "status": "successful",
+  "data": {
+    "function_id_a": 1,
+    "function_id_b": 2,
+    "minhash_similarity": 0.92,
+    "pichash_match": true,
+    "num_instructions_a": 250,
+    "num_instructions_b": 248
+  }
+}
+```
+</ResponseExample>
+
+## Get Function Matches
+
+```http
+GET /matches/function/{function_id}
+```
+
+<Warning>This endpoint is currently not implemented.</Warning>
+
+Would return all matches for a specific function against the database.

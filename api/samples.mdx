@@ -1,0 +1,262 @@
+---
+title: Samples API
+description: Manage binary samples and their functions
+---
+
+## List Samples
+
+```http
+GET /samples
+```
+
+Returns a collection of all samples in the system.
+
+<ParamField query="start" type="integer" default="0">
+  Starting index for pagination
+</ParamField>
+
+<ParamField query="limit" type="integer" default="0">
+  Maximum number of samples to return (0 for all)
+</ParamField>
+
+<ResponseField name="status" type="string">
+  Response status
+</ResponseField>
+
+<ResponseField name="data" type="object">
+  Dictionary of samples keyed by sample_id
+</ResponseField>
+
+<ResponseExample>
+```json
+{
+  "status": "successful",
+  "data": {
+    "1": {
+      "sample_id": 1,
+      "sha256": "abc123...",
+      "family": "malware_family",
+      "version": "1.0",
+      "num_functions": 150
+    }
+  }
+}
+```
+</ResponseExample>
+
+## Add Sample
+
+```http
+POST /samples
+```
+
+Adds a new sample from an SMDA report.
+
+<ParamField header="username" type="string" default="anonymous">
+  Username for tracking who added the sample
+</ParamField>
+
+<ParamField body="smda_report" type="object" required>
+  SMDA disassembly report in JSON format
+</ParamField>
+
+<ResponseField name="status" type="string">
+  Response status
+</ResponseField>
+
+<ResponseField name="data" type="object">
+  Summary of the added sample including sample_id
+</ResponseField>
+
+## Submit Binary
+
+```http
+POST /samples/binary
+```
+
+Submits a binary file for analysis and creates a sample.
+
+<ParamField query="filename" type="string">
+  Original filename of the binary
+</ParamField>
+
+<ParamField query="family" type="string">
+  Family name for the sample
+</ParamField>
+
+<ParamField query="version" type="string">
+  Version information
+</ParamField>
+
+<ParamField query="is_dump" type="boolean" default="false">
+  Whether the binary is a memory dump
+</ParamField>
+
+<ParamField query="base_addr" type="string">
+  Base address in hexadecimal (e.g., "0x400000")
+</ParamField>
+
+<ParamField query="bitness" type="integer" default="32">
+  Binary bitness (32 or 64)
+</ParamField>
+
+<ParamField body="binary" type="binary" required>
+  Raw binary data
+</ParamField>
+
+<ResponseField name="status" type="string">
+  Response status
+</ResponseField>
+
+<ResponseField name="data" type="string">
+  Job ID for tracking the analysis progress
+</ResponseField>
+
+<ResponseExample>
+```json
+{
+  "status": "successful",
+  "data": "507f1f77bcf86cd799439011"
+}
+```
+</ResponseExample>
+
+## Get Sample
+
+```http
+GET /samples/{sample_id}
+```
+
+Returns detailed information about a specific sample.
+
+<ParamField path="sample_id" type="integer" required>
+  ID of the sample to retrieve
+</ParamField>
+
+<ResponseField name="status" type="string">
+  Response status
+</ResponseField>
+
+<ResponseField name="data" type="object">
+  Sample details including metadata and statistics
+</ResponseField>
+
+## Update Sample
+
+```http
+PUT /samples/{sample_id}
+```
+
+Updates metadata for an existing sample.
+
+<ParamField path="sample_id" type="integer" required>
+  ID of the sample to update
+</ParamField>
+
+<ParamField body="family_name" type="string">
+  New family name (0-64 alphanumeric chars with single dots, dashes, underscores)
+</ParamField>
+
+<ParamField body="version" type="string">
+  New version (0-64 printable characters)
+</ParamField>
+
+<ParamField body="component" type="string">
+  New component name (0-64 printable characters)
+</ParamField>
+
+<ParamField body="is_library" type="boolean">
+  Whether the sample is a library
+</ParamField>
+
+<ResponseField name="status" type="string">
+  Response status
+</ResponseField>
+
+<ResponseField name="data" type="object">
+  Confirmation message
+</ResponseField>
+
+## Delete Sample
+
+```http
+DELETE /samples/{sample_id}
+```
+
+Deletes a sample and all its associated functions.
+
+<ParamField path="sample_id" type="integer" required>
+  ID of the sample to delete
+</ParamField>
+
+<ResponseField name="status" type="string">
+  Response status
+</ResponseField>
+
+<ResponseField name="data" type="boolean">
+  Whether the deletion was successful
+</ResponseField>
+
+## Get Sample by SHA256
+
+```http
+GET /samples/sha256/{sha256}
+```
+
+Returns a sample identified by its SHA256 hash.
+
+<ParamField path="sha256" type="string" required>
+  SHA256 hash (64 hexadecimal characters)
+</ParamField>
+
+<ResponseField name="status" type="string">
+  Response status
+</ResponseField>
+
+<ResponseField name="data" type="object">
+  Sample details
+</ResponseField>
+
+## List Sample Functions
+
+```http
+GET /samples/{sample_id}/functions
+```
+
+Returns all functions for a specific sample.
+
+<ParamField path="sample_id" type="integer" required>
+  ID of the sample
+</ParamField>
+
+<ResponseField name="status" type="string">
+  Response status
+</ResponseField>
+
+<ResponseField name="data" type="object">
+  Dictionary of functions keyed by function_id, sorted by offset
+</ResponseField>
+
+## Get Sample Function
+
+```http
+GET /samples/{sample_id}/functions/{function_id}
+```
+
+Returns a specific function from a sample.
+
+<ParamField path="sample_id" type="integer" required>
+  ID of the sample
+</ParamField>
+
+<ParamField path="function_id" type="integer" required>
+  ID of the function
+</ParamField>
+
+<ResponseField name="status" type="string">
+  Response status
+</ResponseField>
+
+<ResponseField name="data" type="object">
+  Function details including disassembly and hashes
+</ResponseField>

@@ -1,0 +1,1393 @@
+---
+title: "Client Methods"
+description: "Complete reference for McritClient methods"
+---
+
+## Status Methods
+
+Methods for checking server status and version information.
+
+### getStatus
+
+Get a status report of the MCRIT server with statistics.
+
+```python
+def getStatus(self, with_pichash: bool = True) -> dict
+```
+
+<ParamField path="with_pichash" type="bool" default={true}>
+  Include PicHash statistics in the status report
+</ParamField>
+
+**Returns:** Dictionary containing server status and statistics
+
+**Example:**
+```python
+client = McritClient()
+status = client.getStatus()
+print(f"Total samples: {status['num_samples']}")
+print(f"Total families: {status['num_families']}")
+```
+
+### getVersion
+
+Get the version of the MCRIT server.
+
+```python
+def getVersion(self) -> str
+```
+
+**Returns:** Version string of the MCRIT server
+
+**Example:**
+```python
+version = client.getVersion()
+print(f"MCRIT version: {version}")
+```
+
+---
+
+## Sample Methods
+
+Methods for managing and querying binary samples.
+
+### addBinarySample
+
+Submit a binary sample for analysis.
+
+```python
+def addBinarySample(
+    self,
+    binary: bytes,
+    filename: str = None,
+    family: str = None,
+    version: str = None,
+    is_dump: bool = False,
+    base_addr: int = None,
+    bitness: int = None
+) -> dict
+```
+
+<ParamField path="binary" type="bytes" required>
+  The binary file content as bytes
+</ParamField>
+
+<ParamField path="filename" type="str" optional>
+  Original filename of the binary
+</ParamField>
+
+<ParamField path="family" type="str" optional>
+  Malware family name (e.g., "emotet", "trickbot")
+</ParamField>
+
+<ParamField path="version" type="str" optional>
+  Version identifier for the sample
+</ParamField>
+
+<ParamField path="is_dump" type="bool" default={false}>
+  Whether the binary is a memory dump
+</ParamField>
+
+<ParamField path="base_addr" type="int" optional>
+  Base address for memory dumps (hexadecimal)
+</ParamField>
+
+<ParamField path="bitness" type="int" optional>
+  Architecture bitness (32 or 64)
+</ParamField>
+
+**Returns:** Dictionary with sample information and optional job_id
+
+**Example:**
+```python
+with open("malware.exe", "rb") as f:
+    binary = f.read()
+
+result = client.addBinarySample(
+    binary=binary,
+    filename="malware.exe",
+    family="emotet",
+    version="2023.1",
+    bitness=32
+)
+print(f"Sample ID: {result['sample_info']['sample_id']}")
+```
+
+### addReport
+
+Add a pre-disassembled SMDA report.
+
+```python
+def addReport(self, smda_report: SmdaReport) -> Tuple[SampleEntry, Optional[str]]
+```
+
+<ParamField path="smda_report" type="SmdaReport" required>
+  SMDA disassembly report object
+</ParamField>
+
+**Returns:** Tuple of (SampleEntry, job_id)
+
+**Example:**
+```python
+from smda.Disassembler import Disassembler
+
+disassembler = Disassembler()
+report = disassembler.disassembleFile("sample.exe")
+
+sample_entry, job_id = client.addReport(report)
+print(f"Added sample: {sample_entry.sample_id}")
+```
+
+### getSamples
+
+Get all sample entries with optional pagination.
+
+```python
+def getSamples(self, start: int = 0, limit: int = 0) -> Dict[int, SampleEntry]
+```
+
+<ParamField path="start" type="int" default={0}>
+  Starting sample ID for pagination
+</ParamField>
+
+<ParamField path="limit" type="int" default={0}>
+  Maximum number of samples to return (0 = all)
+</ParamField>
+
+**Returns:** Dictionary mapping sample IDs to SampleEntry objects
+
+**Example:**
+```python
+# Get first 100 samples
+samples = client.getSamples(start=0, limit=100)
+for sample_id, sample in samples.items():
+    print(f"{sample_id}: {sample.filename}")
+```
+
+### getSampleById
+
+Get a specific sample by its ID.
+
+```python
+def getSampleById(self, sample_id: int) -> Optional[SampleEntry]
+```
+
+<ParamField path="sample_id" type="int" required>
+  The unique identifier of the sample
+</ParamField>
+
+**Returns:** SampleEntry object or None if not found
+
+**Example:**
+```python
+sample = client.getSampleById(12345)
+if sample:
+    print(f"Filename: {sample.filename}")
+    print(f"SHA256: {sample.sha256}")
+    print(f"Family: {sample.family}")
+```
+
+### getSampleBySha256
+
+Get a sample by its SHA256 hash.
+
+```python
+def getSampleBySha256(self, sample_sha256: str) -> Optional[SampleEntry]
+```
+
+<ParamField path="sample_sha256" type="str" required>
+  SHA256 hash of the sample (hexadecimal string)
+</ParamField>
+
+**Returns:** SampleEntry object or None if not found
+
+**Example:**
+```python
+sha256 = "a1b2c3d4e5f6..."
+sample = client.getSampleBySha256(sha256)
+if sample:
+    print(f"Found sample ID: {sample.sample_id}")
+```
+
+### getSamplesByFamilyId
+
+Get all samples belonging to a specific family.
+
+```python
+def getSamplesByFamilyId(self, family_id: int) -> Optional[List[SampleEntry]]
+```
+
+<ParamField path="family_id" type="int" required>
+  The unique identifier of the family
+</ParamField>
+
+**Returns:** List of SampleEntry objects
+
+**Example:**
+```python
+samples = client.getSamplesByFamilyId(42)
+for sample in samples:
+    print(f"Sample: {sample.filename}")
+```
+
+### modifySample
+
+Update sample metadata.
+
+```python
+def modifySample(
+    self,
+    sample_id: int,
+    family_name: str = None,
+    version: str = None,
+    component: str = None,
+    is_library: bool = None
+) -> dict
+```
+
+<ParamField path="sample_id" type="int" required>
+  ID of the sample to modify
+</ParamField>
+
+<ParamField path="family_name" type="str" optional>
+  New family name
+</ParamField>
+
+<ParamField path="version" type="str" optional>
+  New version string
+</ParamField>
+
+<ParamField path="component" type="str" optional>
+  Component identifier
+</ParamField>
+
+<ParamField path="is_library" type="bool" optional>
+  Mark sample as library code
+</ParamField>
+
+**Example:**
+```python
+client.modifySample(
+    sample_id=12345,
+    family_name="emotet_v2",
+    version="2023.2"
+)
+```
+
+### deleteSample
+
+Delete a sample from the database.
+
+```python
+def deleteSample(self, sample_id: int) -> dict
+```
+
+<ParamField path="sample_id" type="int" required>
+  ID of the sample to delete
+</ParamField>
+
+**Example:**
+```python
+result = client.deleteSample(12345)
+```
+
+### isSampleId
+
+Check if a sample ID exists.
+
+```python
+def isSampleId(self, sample_id: int) -> bool
+```
+
+<ParamField path="sample_id" type="int" required>
+  Sample ID to check
+</ParamField>
+
+**Returns:** True if the sample exists, False otherwise
+
+---
+
+## Family Methods
+
+Methods for managing malware families.
+
+### getFamilies
+
+Get all family entries.
+
+```python
+def getFamilies(self) -> Optional[Dict[int, FamilyEntry]]
+```
+
+**Returns:** Dictionary mapping family IDs to FamilyEntry objects
+
+**Example:**
+```python
+families = client.getFamilies()
+for family_id, family in families.items():
+    print(f"{family_id}: {family.family_name} ({len(family.samples)} samples)")
+```
+
+### getFamily
+
+Get a specific family by its ID.
+
+```python
+def getFamily(self, family_id: int, with_samples: bool = True) -> Optional[FamilyEntry]
+```
+
+<ParamField path="family_id" type="int" required>
+  The unique identifier of the family
+</ParamField>
+
+<ParamField path="with_samples" type="bool" default={true}>
+  Include sample information in the response
+</ParamField>
+
+**Returns:** FamilyEntry object or None if not found
+
+**Example:**
+```python
+family = client.getFamily(42, with_samples=True)
+if family:
+    print(f"Family: {family.family_name}")
+    print(f"Samples: {len(family.samples)}")
+```
+
+### modifyFamily
+
+Update family metadata.
+
+```python
+def modifyFamily(
+    self,
+    family_id: int,
+    family_name: str = None,
+    is_library: bool = None
+) -> dict
+```
+
+<ParamField path="family_id" type="int" required>
+  ID of the family to modify
+</ParamField>
+
+<ParamField path="family_name" type="str" optional>
+  New family name
+</ParamField>
+
+<ParamField path="is_library" type="bool" optional>
+  Mark family as library code
+</ParamField>
+
+**Example:**
+```python
+client.modifyFamily(
+    family_id=42,
+    family_name="emotet_v2",
+    is_library=False
+)
+```
+
+### deleteFamily
+
+Delete a family from the database.
+
+```python
+def deleteFamily(self, family_id: int, keep_samples: bool = False) -> dict
+```
+
+<ParamField path="family_id" type="int" required>
+  ID of the family to delete
+</ParamField>
+
+<ParamField path="keep_samples" type="bool" default={false}>
+  If True, samples are retained without family assignment
+</ParamField>
+
+**Example:**
+```python
+# Delete family but keep samples
+client.deleteFamily(42, keep_samples=True)
+```
+
+### isFamilyId
+
+Check if a family ID exists.
+
+```python
+def isFamilyId(self, family_id: int) -> bool
+```
+
+<ParamField path="family_id" type="int" required>
+  Family ID to check
+</ParamField>
+
+**Returns:** True if the family exists, False otherwise
+
+---
+
+## Function Methods
+
+Methods for querying function-level information.
+
+### getFunctions
+
+Get all function entries with optional pagination.
+
+```python
+def getFunctions(self, start: int = 0, limit: int = 0) -> Dict[int, FunctionEntry]
+```
+
+<ParamField path="start" type="int" default={0}>
+  Starting function ID for pagination
+</ParamField>
+
+<ParamField path="limit" type="int" default={0}>
+  Maximum number of functions to return (0 = all)
+</ParamField>
+
+**Returns:** Dictionary mapping function IDs to FunctionEntry objects
+
+### getFunctionById
+
+Get a specific function by its ID.
+
+```python
+def getFunctionById(self, function_id: int, with_xcfg: bool = False) -> Optional[FunctionEntry]
+```
+
+<ParamField path="function_id" type="int" required>
+  The unique identifier of the function
+</ParamField>
+
+<ParamField path="with_xcfg" type="bool" default={false}>
+  Include extended control flow graph data
+</ParamField>
+
+**Returns:** FunctionEntry object or None if not found
+
+**Example:**
+```python
+function = client.getFunctionById(789, with_xcfg=True)
+if function:
+    print(f"Function: {function.function_name}")
+    print(f"Offset: 0x{function.offset:x}")
+```
+
+### getFunctionsBySampleId
+
+Get all functions for a specific sample.
+
+```python
+def getFunctionsBySampleId(self, sample_id: int) -> List[FunctionEntry]
+```
+
+<ParamField path="sample_id" type="int" required>
+  ID of the sample
+</ParamField>
+
+**Returns:** List of FunctionEntry objects
+
+**Example:**
+```python
+functions = client.getFunctionsBySampleId(12345)
+print(f"Found {len(functions)} functions")
+for func in functions:
+    print(f"  - 0x{func.offset:x}: {func.function_name}")
+```
+
+### getFunctionsByIds
+
+Get multiple functions by their IDs.
+
+```python
+def getFunctionsByIds(
+    self,
+    function_ids: List[int],
+    with_label_only: bool = False
+) -> Dict[int, FunctionEntry]
+```
+
+<ParamField path="function_ids" type="List[int]" required>
+  List of function IDs to retrieve
+</ParamField>
+
+<ParamField path="with_label_only" type="bool" default={false}>
+  Only return functions with labels
+</ParamField>
+
+**Returns:** Dictionary mapping function IDs to FunctionEntry objects
+
+**Example:**
+```python
+function_ids = [100, 101, 102, 103]
+functions = client.getFunctionsByIds(function_ids)
+```
+
+### isFunctionId
+
+Check if a function ID exists.
+
+```python
+def isFunctionId(self, function_id: int) -> bool
+```
+
+<ParamField path="function_id" type="int" required>
+  Function ID to check
+</ParamField>
+
+**Returns:** True if the function exists, False otherwise
+
+---
+
+## Matching Methods
+
+Methods for requesting and retrieving code similarity matches.
+
+### requestMatchesForSmdaReport
+
+Request matches for a disassembled SMDA report.
+
+```python
+def requestMatchesForSmdaReport(
+    self,
+    smda_report: SmdaReport,
+    minhash_threshold: float = None,
+    pichash_size: int = None,
+    band_matches_required: int = None,
+    force_recalculation: bool = False
+) -> str
+```
+
+<ParamField path="smda_report" type="SmdaReport" required>
+  SMDA disassembly report
+</ParamField>
+
+<ParamField path="minhash_threshold" type="float" optional>
+  Minimum similarity threshold (0.0 to 1.0)
+</ParamField>
+
+<ParamField path="pichash_size" type="int" optional>
+  PicHash size parameter
+</ParamField>
+
+<ParamField path="band_matches_required" type="int" optional>
+  Number of band matches required
+</ParamField>
+
+<ParamField path="force_recalculation" type="bool" default={false}>
+  Force recalculation of hashes
+</ParamField>
+
+**Returns:** Job ID for tracking the matching job
+
+**Example:**
+```python
+from smda.Disassembler import Disassembler
+
+disassembler = Disassembler()
+report = disassembler.disassembleFile("unknown.exe")
+
+job_id = client.requestMatchesForSmdaReport(
+    report,
+    minhash_threshold=0.8
+)
+
+# Wait for results
+result = client.awaitResult(job_id)
+```
+
+### requestMatchesForUnmappedBinary
+
+Request matches for an unmapped binary file.
+
+```python
+def requestMatchesForUnmappedBinary(
+    self,
+    binary: bytes,
+    minhash_threshold: float = None,
+    pichash_size: int = None,
+    band_matches_required: int = None,
+    disassemble_locally: bool = True,
+    force_recalculation: bool = False
+) -> str
+```
+
+<ParamField path="binary" type="bytes" required>
+  Binary file content
+</ParamField>
+
+<ParamField path="disassemble_locally" type="bool" default={true}>
+  Disassemble locally before sending (faster)
+</ParamField>
+
+**Returns:** Job ID for tracking the matching job
+
+**Example:**
+```python
+with open("sample.exe", "rb") as f:
+    binary = f.read()
+
+job_id = client.requestMatchesForUnmappedBinary(
+    binary,
+    minhash_threshold=0.75,
+    disassemble_locally=True
+)
+```
+
+### requestMatchesForMappedBinary
+
+Request matches for a mapped binary (memory dump).
+
+```python
+def requestMatchesForMappedBinary(
+    self,
+    binary: bytes,
+    base_address: int,
+    minhash_threshold: float = None,
+    pichash_size: int = None,
+    band_matches_required: int = None,
+    disassemble_locally: bool = True,
+    force_recalculation: bool = False
+) -> str
+```
+
+<ParamField path="binary" type="bytes" required>
+  Binary file content
+</ParamField>
+
+<ParamField path="base_address" type="int" required>
+  Base address where the binary was loaded in memory
+</ParamField>
+
+**Returns:** Job ID for tracking the matching job
+
+### requestMatchesForSample
+
+Request matches for an existing sample in the database.
+
+```python
+def requestMatchesForSample(
+    self,
+    sample_id: int,
+    minhash_threshold: float = None,
+    pichash_size: int = None,
+    band_matches_required: int = None,
+    force_recalculation: bool = False
+) -> str
+```
+
+<ParamField path="sample_id" type="int" required>
+  ID of the sample to match against the database
+</ParamField>
+
+**Returns:** Job ID for tracking the matching job
+
+**Example:**
+```python
+job_id = client.requestMatchesForSample(
+    sample_id=12345,
+    minhash_threshold=0.8
+)
+result = client.awaitResult(job_id)
+```
+
+### requestMatchesForSampleVs
+
+Request matches between two specific samples.
+
+```python
+def requestMatchesForSampleVs(
+    self,
+    sample_id: int,
+    other_sample_id: int,
+    minhash_threshold: float = None,
+    pichash_size: int = None,
+    band_matches_required: int = None,
+    force_recalculation: bool = False
+) -> str
+```
+
+<ParamField path="sample_id" type="int" required>
+  ID of the first sample
+</ParamField>
+
+<ParamField path="other_sample_id" type="int" required>
+  ID of the second sample
+</ParamField>
+
+**Returns:** Job ID for tracking the matching job
+
+**Example:**
+```python
+job_id = client.requestMatchesForSampleVs(
+    sample_id=100,
+    other_sample_id=200
+)
+result = client.awaitResult(job_id)
+```
+
+### requestMatchesCross
+
+Request cross-matching between multiple samples.
+
+```python
+def requestMatchesCross(
+    self,
+    sample_ids: List[int],
+    sample_group_only: bool = False,
+    minhash_threshold: float = None,
+    pichash_size: int = None,
+    band_matches_required: int = None,
+    force_recalculation: bool = False
+) -> str
+```
+
+<ParamField path="sample_ids" type="List[int]" required>
+  List of sample IDs to cross-match
+</ParamField>
+
+<ParamField path="sample_group_only" type="bool" default={false}>
+  Only match within the provided sample group
+</ParamField>
+
+**Returns:** Job ID for tracking the matching job
+
+**Example:**
+```python
+sample_ids = [100, 101, 102, 103]
+job_id = client.requestMatchesCross(
+    sample_ids,
+    sample_group_only=True,
+    minhash_threshold=0.7
+)
+```
+
+### getMatchFunctionVs
+
+Get match information between two specific functions.
+
+```python
+def getMatchFunctionVs(
+    self,
+    function_id_a: int,
+    function_id_b: int
+) -> dict
+```
+
+<ParamField path="function_id_a" type="int" required>
+  ID of the first function
+</ParamField>
+
+<ParamField path="function_id_b" type="int" required>
+  ID of the second function
+</ParamField>
+
+**Returns:** Dictionary with matching information
+
+### getMatchesForSmdaFunction
+
+Get matches for a single function from an SMDA report.
+
+```python
+def getMatchesForSmdaFunction(
+    self,
+    smda_report: SmdaReport,
+    minhash_threshold: float = None,
+    pichash_size: int = None,
+    force_recalculation: bool = None,
+    band_matches_required: int = None,
+    exclude_self_matches: bool = False
+) -> dict
+```
+
+<ParamField path="smda_report" type="SmdaReport" required>
+  SMDA report containing a single function
+</ParamField>
+
+<ParamField path="exclude_self_matches" type="bool" default={false}>
+  Exclude matches to the same function
+</ParamField>
+
+**Returns:** Dictionary with matching results
+
+### getMatchesForPicHash
+
+Get all matches for a specific PicHash value.
+
+```python
+def getMatchesForPicHash(self, pichash: int, summary: bool = False) -> dict
+```
+
+<ParamField path="pichash" type="int" required>
+  PicHash value (64-bit integer)
+</ParamField>
+
+<ParamField path="summary" type="bool" default={false}>
+  Return only summary information
+</ParamField>
+
+**Returns:** Dictionary with matching functions
+
+**Example:**
+```python
+matches = client.getMatchesForPicHash(0x1234567890abcdef)
+for match in matches:
+    print(f"Function: {match['function_id']}")
+```
+
+### getMatchesForPicBlockHash
+
+Get all matches for a specific PicBlockHash value.
+
+```python
+def getMatchesForPicBlockHash(self, picblockhash: int, summary: bool = False) -> dict
+```
+
+<ParamField path="picblockhash" type="int" required>
+  PicBlockHash value (64-bit integer)
+</ParamField>
+
+<ParamField path="summary" type="bool" default={false}>
+  Return only summary information
+</ParamField>
+
+**Returns:** Dictionary with matching basic blocks
+
+---
+
+## Query Methods
+
+Methods for searching and querying the database.
+
+### search_families
+
+Search for families by name.
+
+```python
+def search_families(
+    self,
+    search_term: str,
+    cursor: str = None,
+    is_ascending: bool = True,
+    sort_by: str = None,
+    limit: int = None
+) -> dict
+```
+
+<ParamField path="search_term" type="str" required>
+  Search query string
+</ParamField>
+
+<ParamField path="cursor" type="str" optional>
+  Pagination cursor from previous search
+</ParamField>
+
+<ParamField path="is_ascending" type="bool" default={true}>
+  Sort order
+</ParamField>
+
+<ParamField path="sort_by" type="str" optional>
+  Field to sort by
+</ParamField>
+
+<ParamField path="limit" type="int" optional>
+  Maximum results per page
+</ParamField>
+
+**Returns:** Dictionary with search results and pagination cursors
+
+**Example:**
+```python
+result = client.search_families("emotet", limit=50)
+families = result["search_results"]
+for family_id, family in families.items():
+    print(f"{family_id}: {family['family_name']}")
+
+# Get next page
+if result["cursor"]["forward"]:
+    next_result = client.search_families(
+        "emotet",
+        cursor=result["cursor"]["forward"],
+        limit=50
+    )
+```
+
+### search_samples
+
+Search for samples by filename or hash.
+
+```python
+def search_samples(
+    self,
+    search_term: str,
+    cursor: str = None,
+    is_ascending: bool = True,
+    sort_by: str = None,
+    limit: int = None
+) -> dict
+```
+
+<ParamField path="search_term" type="str" required>
+  Search query string (filename, hash, etc.)
+</ParamField>
+
+**Returns:** Dictionary with search results and pagination cursors
+
+**Example:**
+```python
+result = client.search_samples("malware.exe")
+for sample_id, sample in result["search_results"].items():
+    print(f"{sample_id}: {sample['filename']}")
+```
+
+### search_functions
+
+Search for functions by name or characteristics.
+
+```python
+def search_functions(
+    self,
+    search_term: str,
+    cursor: str = None,
+    is_ascending: bool = True,
+    sort_by: str = None,
+    limit: int = None
+) -> dict
+```
+
+<ParamField path="search_term" type="str" required>
+  Search query string
+</ParamField>
+
+**Returns:** Dictionary with search results and pagination cursors
+
+---
+
+## Job Methods
+
+Methods for managing and monitoring asynchronous jobs.
+
+### getJobData
+
+Get information about a specific job.
+
+```python
+def getJobData(self, job_id: str) -> Job
+```
+
+<ParamField path="job_id" type="str" required>
+  Unique identifier of the job
+</ParamField>
+
+**Returns:** Job object with status information
+
+**Example:**
+```python
+job = client.getJobData(job_id)
+print(f"Status: {job.status}")
+print(f"Progress: {job.progress}%")
+if job.is_finished:
+    print(f"Result ID: {job.result}")
+```
+
+### getJobCount
+
+Get the count of jobs matching a filter.
+
+```python
+def getJobCount(self, filter: str = None) -> int
+```
+
+<ParamField path="filter" type="str" optional>
+  Filter expression for jobs
+</ParamField>
+
+**Returns:** Number of jobs matching the filter
+
+### getQueueData
+
+Get queue data with filtering options.
+
+```python
+def getQueueData(
+    self,
+    start: int = 0,
+    limit: int = 0,
+    method: str = None,
+    filter: str = None,
+    state: str = None,
+    ascending: bool = False
+) -> List[Job]
+```
+
+<ParamField path="start" type="int" default={0}>
+  Starting position for pagination
+</ParamField>
+
+<ParamField path="limit" type="int" default={0}>
+  Maximum number of jobs to return
+</ParamField>
+
+<ParamField path="method" type="str" optional>
+  Filter by job method
+</ParamField>
+
+<ParamField path="filter" type="str" optional>
+  Additional filter expression
+</ParamField>
+
+<ParamField path="state" type="str" optional>
+  Filter by job state ("queued", "started", "finished", "failed")
+</ParamField>
+
+<ParamField path="ascending" type="bool" default={false}>
+  Sort order
+</ParamField>
+
+**Returns:** List of Job objects
+
+**Example:**
+```python
+# Get all running jobs
+jobs = client.getQueueData(state="started", limit=100)
+for job in jobs:
+    print(f"{job.job_id}: {job.method} - {job.progress}%")
+```
+
+### getQueueStatistics
+
+Get summary statistics about the job queue.
+
+```python
+def getQueueStatistics(self, with_refresh: bool = False) -> dict
+```
+
+<ParamField path="with_refresh" type="bool" default={false}>
+  Refresh statistics before returning
+</ParamField>
+
+**Returns:** Dictionary with queue statistics
+
+**Example:**
+```python
+stats = client.getQueueStatistics()
+print(f"Queued jobs: {stats['queued']}")
+print(f"Running jobs: {stats['started']}")
+print(f"Finished jobs: {stats['finished']}")
+```
+
+### getResultForJob
+
+Get the result for a completed job.
+
+```python
+def getResultForJob(self, job_id: str, compact: bool = False) -> dict
+```
+
+<ParamField path="job_id" type="str" required>
+  Job identifier
+</ParamField>
+
+<ParamField path="compact" type="bool" default={false}>
+  Return compact result format
+</ParamField>
+
+**Returns:** Dictionary with job results
+
+**Example:**
+```python
+result = client.getResultForJob(job_id, compact=True)
+if result:
+    print(f"Matches found: {len(result['matches'])}")
+```
+
+### getResult
+
+Get a result by its result ID.
+
+```python
+def getResult(self, result_id: str, compact: bool = False) -> dict
+```
+
+<ParamField path="result_id" type="str" required>
+  Result identifier
+</ParamField>
+
+<ParamField path="compact" type="bool" default={false}>
+  Return compact result format
+</ParamField>
+
+**Returns:** Dictionary with result data
+
+### getJobForResult
+
+Get the job information for a specific result.
+
+```python
+def getJobForResult(self, result_id: str) -> Job
+```
+
+<ParamField path="result_id" type="str" required>
+  Result identifier
+</ParamField>
+
+**Returns:** Job object
+
+### awaitResult
+
+Wait for a job to complete and return its result.
+
+```python
+def awaitResult(
+    self,
+    job_id: str,
+    sleep_time: int = 2,
+    compact: bool = False
+) -> dict
+```
+
+<ParamField path="job_id" type="str" required>
+  Job identifier to wait for
+</ParamField>
+
+<ParamField path="sleep_time" type="int" default={2}>
+  Seconds to wait between status checks
+</ParamField>
+
+<ParamField path="compact" type="bool" default={false}>
+  Return compact result format
+</ParamField>
+
+**Returns:** Dictionary with job results
+
+**Raises:** JobTerminatedError if the job is terminated
+
+**Example:**
+```python
+from mcrit.client.McritClient import JobTerminatedError
+
+job_id = client.requestMatchesForSample(12345)
+
+try:
+    result = client.awaitResult(job_id, sleep_time=5)
+    print(f"Job completed successfully")
+except JobTerminatedError:
+    print(f"Job was terminated")
+```
+
+### deleteJob
+
+Delete a job from the queue.
+
+```python
+def deleteJob(self, job_id: str) -> dict
+```
+
+<ParamField path="job_id" type="str" required>
+  Job identifier to delete
+</ParamField>
+
+### deleteQueueData
+
+Delete multiple jobs matching criteria.
+
+```python
+def deleteQueueData(
+    self,
+    method: str = None,
+    created_before: datetime.datetime = None,
+    finished_before: datetime.datetime = None
+) -> dict
+```
+
+<ParamField path="method" type="str" optional>
+  Delete jobs of this method type
+</ParamField>
+
+<ParamField path="created_before" type="datetime" optional>
+  Delete jobs created before this timestamp
+</ParamField>
+
+<ParamField path="finished_before" type="datetime" optional>
+  Delete jobs finished before this timestamp
+</ParamField>
+
+**Example:**
+```python
+from datetime import datetime, timedelta
+
+# Delete finished jobs older than 7 days
+week_ago = datetime.now() - timedelta(days=7)
+client.deleteQueueData(finished_before=week_ago)
+```
+
+---
+
+## Import/Export Methods
+
+Methods for importing and exporting MCRIT data.
+
+### getExportData
+
+Export samples and their data.
+
+```python
+def getExportData(
+    self,
+    sample_ids: List[int] = None,
+    compress_data: bool = True
+) -> dict
+```
+
+<ParamField path="sample_ids" type="List[int]" optional>
+  List of sample IDs to export (None = all samples)
+</ParamField>
+
+<ParamField path="compress_data" type="bool" default={true}>
+  Compress the export data
+</ParamField>
+
+**Returns:** Dictionary with export data
+
+**Example:**
+```python
+import json
+
+# Export specific samples
+export_data = client.getExportData(sample_ids=[100, 101, 102])
+
+# Save to file
+with open("export.json", "w") as f:
+    json.dump(export_data, f)
+```
+
+### addImportData
+
+Import previously exported data.
+
+```python
+def addImportData(self, import_data: dict) -> dict
+```
+
+<ParamField path="import_data" type="dict" required>
+  Dictionary with import data (from getExportData)
+</ParamField>
+
+**Returns:** Import result information
+
+**Example:**
+```python
+import json
+
+# Load from file
+with open("export.json", "r") as f:
+    import_data = json.load(f)
+
+# Import into MCRIT
+result = client.addImportData(import_data)
+print(f"Import completed: {result}")
+```
+
+---
+
+## Unique Blocks Methods
+
+Methods for analyzing unique code blocks.
+
+### requestUniqueBlocksForSamples
+
+Request unique block analysis for multiple samples.
+
+```python
+def requestUniqueBlocksForSamples(self, sample_ids: List[int]) -> dict
+```
+
+<ParamField path="sample_ids" type="List[int]" required>
+  List of sample IDs to analyze
+</ParamField>
+
+**Returns:** Dictionary with unique block information
+
+**Example:**
+```python
+sample_ids = [100, 101, 102]
+unique_blocks = client.requestUniqueBlocksForSamples(sample_ids)
+for sample_id, blocks in unique_blocks.items():
+    print(f"Sample {sample_id}: {len(blocks)} unique blocks")
+```
+
+### requestUniqueBlocksForFamily
+
+Request unique block analysis for a family.
+
+```python
+def requestUniqueBlocksForFamily(self, family_id: int) -> dict
+```
+
+<ParamField path="family_id" type="int" required>
+  Family ID to analyze
+</ParamField>
+
+**Returns:** Dictionary with unique block information
+
+**Example:**
+```python
+unique_blocks = client.requestUniqueBlocksForFamily(42)
+```
+
+---
+
+## Maintenance Methods
+
+Methods for server maintenance and recalculation.
+
+### completeMinhashes
+
+Complete missing MinHash calculations.
+
+```python
+def completeMinhashes(self) -> dict
+```
+
+**Returns:** Status information
+
+### rebuildIndex
+
+Rebuild the matching index.
+
+```python
+def rebuildIndex(self) -> dict
+```
+
+**Returns:** Status information
+
+### recalculatePicHashes
+
+Recalculate all PicHash values.
+
+```python
+def recalculatePicHashes(self) -> dict
+```
+
+**Returns:** Status information
+
+### recalculateMinHashes
+
+Recalculate all MinHash values.
+
+```python
+def recalculateMinHashes(self) -> dict
+```
+
+**Returns:** Status information
+
+### respawn
+
+Restart worker processes.
+
+```python
+def respawn(self) -> dict
+```
+
+**Returns:** Status information

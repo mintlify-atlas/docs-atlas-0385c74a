@@ -1,97 +1,235 @@
 ---
-title: "Introduction"
-description: "Welcome to the new home for your documentation"
+title: "MCRIT Documentation"
+description: "MinHash-based Code Relationship & Investigation Toolkit for binary code similarity analysis"
+mode: "custom"
 ---
 
-## Setting up
+<div className="relative overflow-hidden bg-gradient-to-b from-[#041c2c] via-[#0B1B26] to-[#0f1117] dark:from-[#041c2c] dark:via-[#0B1B26] dark:to-[#0f1117]">
+  <div className="max-w-7xl mx-auto px-6 py-20 sm:py-24">
+    <div className="text-center">
+      <h1 className="text-5xl sm:text-6xl font-bold text-white mb-6">
+        MCRIT
+      </h1>
+      <p className="text-xl sm:text-2xl text-gray-300 dark:text-gray-300 max-w-3xl mx-auto mb-8">
+        MinHash-based Code Relationship & Investigation Toolkit for reverse engineering and malware analysis
+      </p>
+      <p className="text-base sm:text-lg text-gray-400 dark:text-gray-400 max-w-2xl mx-auto mb-10">
+        Rapidly compare binary code using MinHash algorithms to identify similarities, analyze malware families, and investigate code relationships at scale
+      </p>
+      <div className="flex flex-wrap justify-center gap-4">
+        <a
+          href="/quickstart"
+          className="inline-flex items-center px-6 py-3 rounded-lg text-base font-semibold text-white bg-[#04e261] hover:bg-[#047442] transition-colors no-underline"
+        >
+          Get Started
+        </a>
+        <a
+          href="/api/overview"
+          className="inline-flex items-center px-6 py-3 rounded-lg text-base font-semibold text-[#04e261] border-2 border-[#04e261]/30 bg-[#04e261]/10 hover:bg-[#04e261]/20 hover:border-[#04e261] transition-colors no-underline"
+        >
+          API Reference
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
 
-Get your documentation site up and running in minutes.
+<div className="mt-16 mb-16 max-w-5xl mx-auto px-6">
+  <h2 className="text-3xl font-semibold text-gray-900 dark:text-white mb-3">
+    Quick start
+  </h2>
+  <p className="text-base text-gray-600 dark:text-gray-400 mb-8">
+    Get MCRIT running in minutes with Docker or standalone installation
+  </p>
 
-<Card
-  title="Start here"
-  icon="rocket"
-  href="/quickstart"
-  horizontal
->
-  Follow our three step quickstart guide.
-</Card>
+  <Steps>
+    <Step title="Install MCRIT">
+      Deploy with Docker for the simplest setup, including MongoDB and the web frontend:
 
-## Make it yours
+      ```bash
+      git clone https://github.com/danielplohmann/docker-mcrit
+      cd docker-mcrit
+      docker-compose up -d
+      ```
 
-Design a docs site that looks great and empowers your users.
+      Or install standalone with pip:
 
-<Columns cols={2}>
-  <Card
-    title="Edit locally"
-    icon="pen-to-square"
-    href="/development"
-  >
-    Edit your docs locally and preview them in real time.
-  </Card>
-  <Card
-    title="Customize your site"
-    icon="palette"
-    href="/essentials/settings"
-  >
-    Customize the design and colors of your site to match your brand.
-  </Card>
+      ```bash
+      pip install -e .
+      ```
+    </Step>
+
+    <Step title="Start the server and worker">
+      Run the API server and background worker:
+
+      ```bash
+      mcrit server
+      ```
+
+      In a separate terminal:
+
+      ```bash
+      mcrit worker
+      ```
+
+      The server will be available at `http://127.0.0.1:8000`
+    </Step>
+
+    <Step title="Submit your first sample">
+      Use the CLI to submit a binary for analysis:
+
+      ```bash
+      mcrit client submit sample_unpacked -f malware_family
+      ```
+
+      Or use the Python client:
+
+      ```python
+      from mcrit.client.McritClient import McritClient
+
+      client = McritClient("http://localhost:8000")
+      result = client.addBinarySample(binary_data, "sample_name", "family_name")
+      ```
+    </Step>
+  </Steps>
+</div>
+
+<div className="mt-16 mb-16 max-w-5xl mx-auto px-6">
+  <h2 className="text-3xl font-semibold text-gray-900 dark:text-white mb-3">
+    Explore MCRIT
+  </h2>
+  <p className="text-base text-gray-600 dark:text-gray-400 mb-8">
+    Learn about MCRIT's capabilities and how to use them effectively
+  </p>
+
+  <CardGroup cols={3}>
     <Card
-    title="Set up navigation"
-    icon="map"
-    href="/essentials/navigation"
-  >
-    Organize your docs to help users find what they need and succeed with your product.
-  </Card>
-  <Card
-    title="API documentation"
-    icon="terminal"
-    href="/api-reference/introduction"
-  >
-    Auto-generate API documentation from OpenAPI specifications.
-  </Card>
-</Columns>
+      title="Installation"
+      icon="download"
+      href="/installation"
+    >
+      Docker and standalone deployment options
+    </Card>
+    <Card
+      title="CLI Guide"
+      icon="terminal"
+      href="/guides/cli"
+    >
+      Command-line interface for sample management
+    </Card>
+    <Card
+      title="Python Client"
+      icon="code"
+      href="/guides/python-client"
+    >
+      Programmatic access to all MCRIT features
+    </Card>
+    <Card
+      title="MinHash Concepts"
+      icon="fingerprint"
+      href="/concepts/minhash"
+    >
+      Understanding MinHash-based similarity analysis
+    </Card>
+    <Card
+      title="API Endpoints"
+      icon="globe"
+      href="/api/samples"
+    >
+      REST API for samples, functions, and matching
+    </Card>
+    <Card
+      title="IDA Plugin"
+      icon="puzzle-piece"
+      href="/guides/ida-plugin"
+    >
+      Integration with IDA Pro for live analysis
+    </Card>
+  </CardGroup>
+</div>
 
-## Create beautiful pages
+<div className="mt-16 mb-16 max-w-5xl mx-auto px-6">
+  <h2 className="text-3xl font-semibold text-gray-900 dark:text-white mb-3">
+    Key features
+  </h2>
+  <p className="text-base text-gray-600 dark:text-gray-400 mb-8">
+    Powerful capabilities for code similarity analysis and malware research
+  </p>
 
-Everything you need to create world-class documentation.
+  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <div className="p-6 rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#1a1d27]">
+      <div className="flex items-center gap-3 mb-3">
+        <div className="w-10 h-10 rounded-lg bg-[#04e261]/10 dark:bg-[#04e261]/10 flex items-center justify-center">
+          <svg className="w-5 h-5 text-[#04e261]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+          </svg>
+        </div>
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Fast MinHash matching</h3>
+      </div>
+      <p className="text-sm text-gray-600 dark:text-gray-400">
+        Rapidly identify code similarities using MinHash algorithms with configurable band counts and thresholds
+      </p>
+    </div>
 
-<Columns cols={2}>
-  <Card
-    title="Write with MDX"
-    icon="pen-fancy"
-    href="/essentials/markdown"
-  >
-    Use MDX to style your docs pages.
-  </Card>
-  <Card
-    title="Code samples"
-    icon="code"
-    href="/essentials/code"
-  >
-    Add sample code to demonstrate how to use your product.
-  </Card>
-  <Card
-    title="Images"
-    icon="image"
-    href="/essentials/images"
-  >
-    Display images and other media.
-  </Card>
-  <Card
-    title="Reusable snippets"
-    icon="recycle"
-    href="/essentials/reusable-snippets"
-  >
-    Write once and reuse across your docs.
-  </Card>
-</Columns>
+    <div className="p-6 rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#1a1d27]">
+      <div className="flex items-center gap-3 mb-3">
+        <div className="w-10 h-10 rounded-lg bg-[#04e261]/10 dark:bg-[#04e261]/10 flex items-center justify-center">
+          <svg className="w-5 h-5 text-[#04e261]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+          </svg>
+        </div>
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">SMDA integration</h3>
+      </div>
+      <p className="text-sm text-gray-600 dark:text-gray-400">
+        Built on SMDA disassembler for accurate function extraction and analysis across multiple architectures
+      </p>
+    </div>
 
-## Need inspiration?
+    <div className="p-6 rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#1a1d27]">
+      <div className="flex items-center gap-3 mb-3">
+        <div className="w-10 h-10 rounded-lg bg-[#04e261]/10 dark:bg-[#04e261]/10 flex items-center justify-center">
+          <svg className="w-5 h-5 text-[#04e261]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4" />
+          </svg>
+        </div>
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">MongoDB storage</h3>
+      </div>
+      <p className="text-sm text-gray-600 dark:text-gray-400">
+        Persistent storage for samples, functions, and analysis results with efficient indexing
+      </p>
+    </div>
 
-<Card
-  title="See complete examples"
-  icon="stars"
-  href="https://mintlify.com/customers"
->
-  Browse our showcase of exceptional documentation sites.
-</Card>
+    <div className="p-6 rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#1a1d27]">
+      <div className="flex items-center gap-3 mb-3">
+        <div className="w-10 h-10 rounded-lg bg-[#04e261]/10 dark:bg-[#04e261]/10 flex items-center justify-center">
+          <svg className="w-5 h-5 text-[#04e261]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+          </svg>
+        </div>
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Job queue system</h3>
+      </div>
+      <p className="text-sm text-gray-600 dark:text-gray-400">
+        Asynchronous processing with worker architecture for compute-intensive matching operations
+      </p>
+    </div>
+  </div>
+</div>
+
+<div className="mt-16 mb-16 max-w-5xl mx-auto px-6">
+  <div className="rounded-2xl border border-gray-200 dark:border-[#27272a] bg-gradient-to-br from-[#04e261]/5 to-[#047442]/5 dark:from-[#04e261]/5 dark:to-[#047442]/5 p-8 sm:p-10">
+    <div className="text-center">
+      <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-4">
+        Ready to analyze binary code?
+      </h2>
+      <p className="text-base text-gray-600 dark:text-gray-400 max-w-2xl mx-auto mb-6">
+        Start identifying code relationships and analyzing malware families with MCRIT's powerful MinHash-based similarity engine
+      </p>
+      <a
+        href="/quickstart"
+        className="inline-flex items-center px-6 py-3 rounded-lg text-base font-semibold text-white bg-[#04e261] hover:bg-[#047442] transition-colors no-underline"
+      >
+        Get Started →
+      </a>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,542 @@
+---
+title: "Configuration"
+description: "Complete reference for MCRIT configuration options and settings"
+---
+
+## Overview
+
+MCRIT's behavior can be customized through configuration files and environment variables. Configuration is organized into several domain-specific classes:
+
+- **MinHashConfig**: MinHash algorithm parameters
+- **StorageConfig**: Database and storage settings
+- **QueueConfig**: Job queue configuration
+- **GunicornConfig**: Web server settings (Linux only)
+- **ShinglerConfig**: Shingler algorithm settings
+
+## Configuration Methods
+
+MCRIT can be configured in multiple ways:
+
+1. **Configuration files**: Modify Python configuration classes in `mcrit/config/`
+2. **Environment variables**: Set environment variables (recommended for Docker)
+3. **Runtime parameters**: Pass configuration dictionaries to components
+
+<Info>
+Configuration classes are dataclasses that extend `ConfigInterface`, providing serialization and logging capabilities.
+</Info>
+
+## Main Configuration
+
+### McritConfig
+
+The main configuration class that aggregates all other configurations.
+
+**Location:** `mcrit/config/McritConfig.py`
+
+<ParamField path="VERSION" type="string" default="1.4.5">
+  MCRIT version number
+</ParamField>
+
+<ParamField path="AUTH_TOKEN" type="string" default="">
+  API authentication token. When set, clients must include this token in the `apitoken` header field. Empty string disables authentication.
+</ParamField>
+
+<ParamField path="LOG_PATH" type="string" default="./">
+  Directory path for log files
+</ParamField>
+
+<ParamField path="LOG_LEVEL" type="logging level" default="logging.INFO">
+  Logging verbosity level. Options: `logging.DEBUG`, `logging.INFO`, `logging.WARNING`, `logging.ERROR`
+</ParamField>
+
+<ParamField path="LOG_FORMAT" type="string" default="%(asctime)-15s: %(name)-32s - %(message)s">
+  Python logging format string
+</ParamField>
+
+## MinHash Configuration
+
+Controls the MinHash algorithm behavior for code similarity detection.
+
+**Location:** `mcrit/config/MinHashConfig.py`
+
+### Core MinHash Settings
+
+<ParamField path="MINHASH_SIGNATURE_LENGTH" type="integer" default="64">
+  Number of hash values in each MinHash signature. Higher values increase accuracy but consume more memory and processing time.
+</ParamField>
+
+<ParamField path="MINHASH_SIGNATURE_BITS" type="integer" default="8">
+  Number of bits per signature element (1-32 bits). Affects hash value range and collision probability.
+</ParamField>
+
+<ParamField path="MINHASH_SEED" type="integer" default="0xDEADBEEF">
+  Random seed for initializing XOR values for MinHash seeds. Ensures deterministic hash generation.
+</ParamField>
+
+<ParamField path="MINHASH_STRATEGY" type="constant" default="MinHasher.MINHASH_STRATEGY_SEGMENTED">
+  MinHash calculation strategy to use
+</ParamField>
+
+### Function Filtering
+
+<ParamField path="MINHASH_FN_MIN_INS" type="integer" default="10">
+  Minimum number of instructions required for a function to be MinHashed. Functions below this threshold are ignored.
+</ParamField>
+
+<ParamField path="MINHASH_FN_MIN_BLOCKS" type="integer" default="0">
+  Alternative minimum: number of basic blocks required for MinHashing. Set to 0 to disable.
+</ParamField>
+
+### Matching Parameters
+
+<ParamField path="MINHASH_MATCHING_THRESHOLD" type="integer" default="50">
+  Lower bound percentage (0-100) at which paired MinHashes are considered a match
+</ParamField>
+
+<ParamField path="BAND_MATCHES_REQUIRED" type="integer" default="2">
+  Minimum number of band matches required before a MinHash is considered a candidate for matching. Higher values reduce false positives but may miss some matches.
+</ParamField>
+
+### Performance Tuning
+
+<ParamField path="MINHASH_POOL_INDEXING" type="boolean" default="true">
+  Enable multiprocessing for MinHash indexing operations. May need to be disabled when using Gunicorn/Falcon to avoid multiprocessing conflicts.
+</ParamField>
+
+<ParamField path="MINHASH_POOL_MATCHING" type="boolean" default="true">
+  Enable multiprocessing for MinHash matching operations
+</ParamField>
+
+<ParamField path="MINHASH_MATCHING_FUNCTION_BATCH_SIZE" type="integer" default="10000">
+  Number of functions to process in each batch during matching
+</ParamField>
+
+<ParamField path="MINHASH_MATCHING_CANDIDATE_WORKPACK_SIZE" type="integer" default="20000">
+  Number of candidate pairs to process per work unit during matching
+</ParamField>
+
+<ParamField path="MINHASH_GENERATION_WORKPACK_SIZE" type="integer" default="10000">
+  Number of functions to process into MinHashes per work iteration
+</ParamField>
+
+<ParamField path="MINHASH_BAND_REBUILD_WORK_PACKAGE_SIZE" type="integer" default="100000">
+  Batch size when rebuilding MinHash bands
+</ParamField>
+
+### PicHash Settings
+
+<ParamField path="PICHASH_SIZE" type="integer" default="10">
+  Minimum function size (in instructions) for considering PicHash matching
+</ParamField>
+
+<ParamField path="PICHASH_IMPLIES_MINHASH_MATCH" type="boolean" default="true">
+  When true, PicHash matches automatically imply MinHash matches without performing additional MinHash comparison
+</ParamField>
+
+### Advanced Options
+
+<ParamField path="MINHASH_TRACK_SHINGLES" type="boolean" default="false">
+  Store the combination of shingles (unsorted) used to create each MinHash. Increases storage requirements but enables detailed analysis.
+</ParamField>
+
+## Storage Configuration
+
+Configures the database backend and storage behavior.
+
+**Location:** `mcrit/config/StorageConfig.py`
+
+### Database Connection
+
+<ParamField path="STORAGE_METHOD" type="constant" default="StorageFactory.STORAGE_METHOD_MONGODB">
+  Storage backend to use. Options:
+  - `StorageFactory.STORAGE_METHOD_MONGODB`: MongoDB (recommended for production)
+  - `StorageFactory.STORAGE_METHOD_MEMORY`: In-memory storage (testing only)
+</ParamField>
+
+<ParamField path="STORAGE_SERVER" type="string" default="127.0.0.1">
+  MongoDB server hostname or IP address
+</ParamField>
+
+<ParamField path="STORAGE_PORT" type="string" default="27017">
+  MongoDB server port
+</ParamField>
+
+<ParamField path="STORAGE_MONGODB_DBNAME" type="string" default="mcrit">
+  MongoDB database name for storage collections
+</ParamField>
+
+<ParamField path="STORAGE_MONGODB_USERNAME" type="string" default="None">
+  MongoDB authentication username. Set to `None` to disable authentication.
+</ParamField>
+
+<ParamField path="STORAGE_MONGODB_PASSWORD" type="string" default="None">
+  MongoDB authentication password. Set to `None` to disable authentication.
+</ParamField>
+
+<ParamField path="STORAGE_MONGODB_FLAGS" type="string" default="">
+  Additional MongoDB connection string flags (e.g., `?authSource=admin&ssl=true`)
+</ParamField>
+
+### MongoDB Connection String Format
+
+When authentication is enabled, the connection string is constructed as:
+
+```
+mongodb://[username]:[password]@[server]:[port]/[dbname][flags]
+```
+
+Example:
+```
+mongodb://mcrit:password123@mongodb.example.com:27017/mcrit?authSource=admin
+```
+
+<Note>
+The connection to MongoDB is fully configurable. Set `STORAGE_MONGODB_USERNAME` and `STORAGE_MONGODB_PASSWORD` to enable authentication.
+</Note>
+
+### Banding Strategy
+
+<ParamField path="STORAGE_BAND_STRATEGY" type="string" default="random">
+  Strategy for selecting MinHash fields for banding:
+  - `random`: Randomly sample from MinHash fields (more fuzziness, may not use all fields)
+  - `linear`: Sequential selection of MinHash fields (requires `size × number = MINHASH_SIGNATURE_LENGTH`)
+</ParamField>
+
+<ParamField path="STORAGE_BAND_SEED" type="integer" default="0xDEADBEEF">
+  Random seed for deriving band sequences. Ensures deterministic band generation.
+</ParamField>
+
+<ParamField path="STORAGE_BANDS" type="dict" default="{4: 20}">
+  Banding configuration as a dictionary with `size: number` structure. Multiple band sizes can be used to increase scatter effect and randomness.
+  
+  Example: `{4: 20}` means 20 bands of 4 hash values each.
+</ParamField>
+
+<ParamField path="STORAGE_NUM_BANDS" type="integer" computed>
+  Total number of bands (computed from `STORAGE_BANDS`). Read-only property.
+</ParamField>
+
+### Performance and Optimization
+
+<ParamField path="STORAGE_CACHE" type="boolean" default="false">
+  Use a hashmap to cache all banding data. Very memory-intensive but provides significant speedups.
+</ParamField>
+
+<ParamField path="STORAGE_DROP_DISASSEMBLY" type="boolean" default="false">
+  Discard disassembly data from function entries after MinHashes are calculated. Reduces storage size but prevents future disassembly access.
+</ParamField>
+
+### Cleanup Configuration
+
+<ParamField path="STORAGE_MONGODB_ENABLE_CLEANUP" type="boolean" default="false">
+  Enable periodic deletion of queried samples and their results after a specified time
+</ParamField>
+
+<ParamField path="STORAGE_MONGODB_CLEANUP_DELTA" type="integer" default="604800">
+  Time in seconds between cleanup operations (default: 7 days)
+</ParamField>
+
+<ParamField path="STORAGE_MONGODB_CLEANUP_TTL" type="integer" default="604800">
+  Time-to-live in seconds for queried samples (default: 7 days)
+</ParamField>
+
+### Export Limits
+
+<ParamField path="STORAGE_MAX_EXPORT_SIZE" type="integer" default="1073741824">
+  Maximum export size in bytes to protect against out-of-memory crashes (default: 1 GB)
+</ParamField>
+
+## Queue Configuration
+
+Configures the job queue system for managing asynchronous tasks.
+
+**Location:** `mcrit/config/QueueConfig.py`
+
+### Queue Connection
+
+<ParamField path="QUEUE_METHOD" type="constant" default="QueueFactory.QUEUE_METHOD_MONGODB">
+  Queue backend to use. Options:
+  - `QueueFactory.QUEUE_METHOD_MONGODB`: MongoDB-based queue (recommended)
+  - `QueueFactory.QUEUE_METHOD_FAKE`: Fake queue for testing
+</ParamField>
+
+<ParamField path="QUEUE_SERVER" type="string" default="127.0.0.1">
+  MongoDB server hostname for the queue
+</ParamField>
+
+<ParamField path="QUEUE_PORT" type="string" default="27017">
+  MongoDB server port for the queue
+</ParamField>
+
+<ParamField path="QUEUE_MONGODB_DBNAME" type="string" default="mcrit">
+  MongoDB database name for queue collections
+</ParamField>
+
+<ParamField path="QUEUE_MONGODB_USERNAME" type="string" default="None">
+  MongoDB authentication username for queue
+</ParamField>
+
+<ParamField path="QUEUE_MONGODB_PASSWORD" type="string" default="None">
+  MongoDB authentication password for queue
+</ParamField>
+
+<ParamField path="QUEUE_MONGODB_FLAGS" type="string" default="">
+  Additional MongoDB connection flags for queue
+</ParamField>
+
+<ParamField path="QUEUE_MONGODB_COLLECTION_NAME" type="string" default="queue">
+  MongoDB collection name for storing queue items
+</ParamField>
+
+<Warning>
+Changing `STORAGE_MONGODB_DBNAME` or `QUEUE_MONGODB_DBNAME` at runtime only affects that specific component. Both must be changed independently.
+</Warning>
+
+### Job Processing
+
+<ParamField path="QUEUE_TIMEOUT" type="integer" default="300">
+  Job timeout in seconds. Jobs exceeding this duration are marked as failed.
+</ParamField>
+
+<ParamField path="QUEUE_MAX_ATTEMPTS" type="integer" default="3">
+  Maximum number of retry attempts for failed jobs
+</ParamField>
+
+<ParamField path="QUEUE_CLEAN_INTERVAL" type="integer" default="1200">
+  Time in seconds each worker waits between queue cleanup operations (default: 20 minutes)
+</ParamField>
+
+<ParamField path="QUEUE_SPAWNINGWORKER_CHILDREN_TIMEOUT" type="integer" default="3600">
+  Timeout in seconds for child processes spawned by SpawningWorker (default: 1 hour)
+</ParamField>
+
+## Gunicorn Configuration
+
+Configures the Gunicorn WSGI server (Linux only).
+
+**Location:** `mcrit/config/GunicornConfig.py`
+
+<ParamField path="USE_GUNICORN" type="boolean" default="false">
+  Enable Gunicorn as the WSGI server. Only works on Linux. When disabled or on Windows, waitress is used instead.
+</ParamField>
+
+<ParamField path="BIND" type="string" default="0.0.0.0:8000">
+  Host and port binding specified as `host:port`
+</ParamField>
+
+<ParamField path="WORKERS" type="integer" default="4">
+  Number of Gunicorn worker processes to spawn
+</ParamField>
+
+<ParamField path="THREADS" type="integer" default="8">
+  Number of threads per Gunicorn worker
+</ParamField>
+
+<ParamField path="TIMEOUT" type="integer" default="120">
+  Timeout in seconds before silent workers are killed and restarted
+</ParamField>
+
+<Info>
+Gunicorn provides significantly better performance than waitress on Linux systems and is recommended for production deployments.
+</Info>
+
+## Shingler Configuration
+
+Configures the shingling algorithms for feature extraction.
+
+**Location:** `mcrit/config/ShinglerConfig.py`
+
+<ParamField path="SHINGLER_DIR" type="string" default="{PROJECT_ROOT}/shinglers">
+  Directory path to search for files matching pattern `*Shingler.py`
+</ParamField>
+
+<ParamField path="SHINGLER_WEIGHT_STRATEGY" type="constant" default="ShingleLoader.WEIGHT_STRATEGY_SHINGLER_WEIGHTS">
+  Strategy for applying shingler weights
+</ParamField>
+
+<ParamField path="SHINGLER_LOGBUCKETS" type="integer" default="100000">
+  Expected range for logbucket matching
+</ParamField>
+
+<ParamField path="SHINGLER_LOGBUCKET_RANGE" type="integer" default="1">
+  Number of values to include in the range left and right of the center
+</ParamField>
+
+<ParamField path="SHINGLER_LOGBUCKET_CENTERED" type="boolean" default="true">
+  Add additional counts for values closer to the center
+</ParamField>
+
+<ParamField path="SHINGLERS_WEIGHTS" type="dict" default="{'FuzzyStatPairShingler': 1, 'EscapedBlockShingler': 3}">
+  Weights for different shinglers. Higher weights effectively run the shingler multiple times, increasing its influence.
+</ParamField>
+
+<ParamField path="SHINGLERS_SEED" type="integer" default="0xDEADBEEF">
+  Random seed for initializing XOR values for shingler hash seeds
+</ParamField>
+
+<ParamField path="SHINGLERS_XOR_VALUES" type="list" default="[]">
+  Automatically set when shinglers are loaded. Listed for completeness only.
+</ParamField>
+
+## Environment Variables
+
+Configuration values can be set via environment variables. The variable names typically match the configuration parameter names:
+
+### Common Environment Variables
+
+```bash
+# Storage configuration
+export STORAGE_SERVER=mongodb.example.com
+export STORAGE_PORT=27017
+export STORAGE_MONGODB_USERNAME=mcrit_user
+export STORAGE_MONGODB_PASSWORD=secure_password
+export STORAGE_MONGODB_DBNAME=mcrit_production
+
+# Queue configuration
+export QUEUE_SERVER=mongodb.example.com
+export QUEUE_PORT=27017
+export QUEUE_MONGODB_USERNAME=mcrit_user
+export QUEUE_MONGODB_PASSWORD=secure_password
+
+# Authentication
+export AUTH_TOKEN=your_secret_api_token_here
+
+# Gunicorn
+export USE_GUNICORN=true
+export WORKERS=8
+export THREADS=4
+```
+
+### Docker Environment Example
+
+```yaml
+environment:
+  - STORAGE_SERVER=mongodb
+  - STORAGE_PORT=27017
+  - STORAGE_MONGODB_USERNAME=mcrit
+  - STORAGE_MONGODB_PASSWORD=${MONGODB_PASSWORD}
+  - QUEUE_SERVER=mongodb
+  - QUEUE_PORT=27017
+  - AUTH_TOKEN=${MCRIT_API_TOKEN}
+```
+
+## Configuration Examples
+
+### Development Configuration
+
+```python
+from mcrit.config.MinHashConfig import MinHashConfig
+from mcrit.config.StorageConfig import StorageConfig
+
+# Smaller signature for faster processing
+minhash_config = MinHashConfig(
+    MINHASH_SIGNATURE_LENGTH=32,
+    MINHASH_MATCHING_THRESHOLD=40,
+    MINHASH_POOL_INDEXING=True
+)
+
+# In-memory storage for testing
+storage_config = StorageConfig(
+    STORAGE_METHOD=StorageFactory.STORAGE_METHOD_MEMORY
+)
+```
+
+### Production Configuration
+
+```python
+from mcrit.config.MinHashConfig import MinHashConfig
+from mcrit.config.StorageConfig import StorageConfig
+from mcrit.config.GunicornConfig import GunicornConfig
+
+# High-precision MinHash
+minhash_config = MinHashConfig(
+    MINHASH_SIGNATURE_LENGTH=128,
+    MINHASH_MATCHING_THRESHOLD=60,
+    MINHASH_POOL_INDEXING=False  # Disable for Gunicorn
+)
+
+# MongoDB with authentication
+storage_config = StorageConfig(
+    STORAGE_METHOD=StorageFactory.STORAGE_METHOD_MONGODB,
+    STORAGE_SERVER="mongodb-cluster.internal",
+    STORAGE_MONGODB_USERNAME="mcrit_prod",
+    STORAGE_MONGODB_PASSWORD="secure_password",
+    STORAGE_CACHE=True,  # Enable caching
+    STORAGE_BANDS={4: 32}  # More bands for better accuracy
+)
+
+# Gunicorn for performance
+gunicorn_config = GunicornConfig(
+    USE_GUNICORN=True,
+    WORKERS=16,
+    THREADS=4,
+    TIMEOUT=300
+)
+```
+
+### High-Performance Configuration
+
+```python
+# Optimize for speed with multiple workers
+minhash_config = MinHashConfig(
+    MINHASH_GENERATION_WORKPACK_SIZE=50000,
+    MINHASH_MATCHING_CANDIDATE_WORKPACK_SIZE=100000,
+    MINHASH_POOL_MATCHING=True
+)
+
+queue_config = QueueConfig(
+    QUEUE_TIMEOUT=600,  # 10 minutes for large jobs
+    QUEUE_MAX_ATTEMPTS=5
+)
+```
+
+## Configuration Hash
+
+Some configuration classes provide a `getConfigHash()` method that generates a SHA256 hash of critical parameters. This ensures configuration consistency across database migrations:
+
+```python
+from mcrit.config.MinHashConfig import MinHashConfig
+
+config = MinHashConfig()
+config_hash = config.getConfigHash()
+print(config_hash)  # e.g., "a3f2b1c9d8e7f6..."
+```
+
+The configuration hash includes:
+- MinHash strategy, signature length, and seed
+- Function filtering thresholds
+- PicHash parameters
+
+<Warning>
+Changing configuration parameters that affect hash generation will invalidate existing MinHashes. A database migration and recalculation may be required.
+</Warning>
+
+## Validating Configuration
+
+Check your current configuration using the MCRIT client:
+
+```bash
+mcrit client status
+```
+
+This returns information about the database state and storage configuration:
+
+```json
+{
+  "status": {
+    "db_state": 187,
+    "storage_type": "mongodb",
+    "num_bands": 20,
+    "num_samples": 137,
+    "num_families": 14,
+    "num_functions": 129110,
+    "num_pichashes": 25385
+  }
+}
+```
+
+## Next Steps
+
+- Deploy using [Docker](/deployment/docker) or [Standalone](/deployment/standalone)
+- Learn about [MinHash concepts](/concepts/minhash)
+- Explore the [API reference](/api-reference/overview)

@@ -1,0 +1,243 @@
+---
+title: Status API
+description: System status, version, configuration, and search endpoints
+---
+
+## Get System Status
+
+<Info>This endpoint returns information about the MCRIT system status.</Info>
+
+```http
+GET /status
+```
+
+<ParamField query="with_pichash" type="boolean" default="false">
+  Include PicHash information in the status response
+</ParamField>
+
+<ResponseField name="status" type="string">
+  Response status ("successful" or "failed")
+</ResponseField>
+
+<ResponseField name="data" type="object">
+  System status information including database statistics
+</ResponseField>
+
+## Get Version
+
+```http
+GET /version
+```
+
+Returns the MCRIT version information.
+
+<ResponseExample>
+```json
+{
+  "status": "successful",
+  "data": {
+    "version": "1.0.0"
+  }
+}
+```
+</ResponseExample>
+
+## Get Configuration
+
+```http
+GET /config
+```
+
+<Warning>This endpoint is currently not implemented.</Warning>
+
+Returns the MCRIT configuration settings.
+
+## Export Data
+
+```http
+GET /export
+```
+
+Exports all MCRIT data.
+
+<ParamField query="compress" type="boolean" default="false">
+  Compress the exported data
+</ParamField>
+
+<ResponseField name="status" type="string">
+  Response status
+</ResponseField>
+
+<ResponseField name="data" type="object">
+  Exported data including samples, families, and functions
+</ResponseField>
+
+## Export Selection
+
+```http
+GET /export/{comma_separated_sample_ids}
+```
+
+Exports specific samples by their IDs.
+
+<ParamField path="comma_separated_sample_ids" type="string" required>
+  Comma-separated list of sample IDs (e.g., "1,2,3")
+</ParamField>
+
+<ParamField query="compress" type="boolean" default="false">
+  Compress the exported data
+</ParamField>
+
+## Import Data
+
+```http
+POST /import
+```
+
+Imports MCRIT data from a previously exported dataset.
+
+<ParamField body="import_data" type="object" required>
+  Exported data to import
+</ParamField>
+
+<ResponseField name="status" type="string">
+  Response status
+</ResponseField>
+
+<ResponseField name="data" type="object">
+  Import report with statistics
+</ResponseField>
+
+## Respawn Instance
+
+```http
+POST /respawn
+```
+
+<Warning>This operation resets the entire MCRIT instance and deletes all data.</Warning>
+
+Resets the MCRIT instance by clearing all data from the database.
+
+## Complete MinHashes
+
+```http
+GET /complete_minhashes
+```
+
+Calculates all missing MinHashes for all samples and functions.
+
+<ResponseField name="status" type="string">
+  Response status
+</ResponseField>
+
+<ResponseField name="data" type="object">
+  Report with number of MinHashes calculated
+</ResponseField>
+
+## Rebuild Index
+
+```http
+GET /rebuild_index
+```
+
+Drops all MinHash bands and rebuilds the index using all existing MinHashes.
+
+## Recalculate PicHashes
+
+```http
+GET /recalculate_pichashes
+```
+
+Recalculates all PicHashes for functions that may have outdated values.
+
+## Recalculate MinHashes
+
+```http
+GET /recalculate_minhashes
+```
+
+Recalculates all MinHashes for functions that may have outdated values.
+
+## Search Families
+
+```http
+GET /search/families
+```
+
+Searches for families based on a query string.
+
+<ParamField query="query" type="string" required>
+  Search term to find families
+</ParamField>
+
+<ParamField query="cursor" type="string">
+  Pagination cursor
+</ParamField>
+
+<ParamField query="sort_by" type="string">
+  Field to sort results by
+</ParamField>
+
+<ParamField query="is_ascending" type="boolean" default="true">
+  Sort order (true for ascending, false for descending)
+</ParamField>
+
+<ParamField query="limit" type="integer">
+  Maximum number of results to return
+</ParamField>
+
+## Search Samples
+
+```http
+GET /search/samples
+```
+
+Searches for samples based on a query string.
+
+<ParamField query="query" type="string" required>
+  Search term to find samples
+</ParamField>
+
+<ParamField query="cursor" type="string">
+  Pagination cursor
+</ParamField>
+
+<ParamField query="sort_by" type="string">
+  Field to sort results by
+</ParamField>
+
+<ParamField query="is_ascending" type="boolean" default="true">
+  Sort order
+</ParamField>
+
+<ParamField query="limit" type="integer">
+  Maximum number of results to return
+</ParamField>
+
+## Search Functions
+
+```http
+GET /search/functions
+```
+
+Searches for functions based on a query string.
+
+<ParamField query="query" type="string" required>
+  Search term to find functions
+</ParamField>
+
+<ParamField query="cursor" type="string">
+  Pagination cursor
+</ParamField>
+
+<ParamField query="sort_by" type="string">
+  Field to sort results by
+</ParamField>
+
+<ParamField query="is_ascending" type="boolean" default="true">
+  Sort order
+</ParamField>
+
+<ParamField query="limit" type="integer">
+  Maximum number of results to return
+</ParamField>

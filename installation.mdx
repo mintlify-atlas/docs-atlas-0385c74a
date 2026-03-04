@@ -1,0 +1,337 @@
+---
+title: Installation
+description: Install MCRIT using Docker or standalone setup with MongoDB backend
+---
+
+## Installation Options
+
+MCRIT can be installed in two ways: using Docker for a complete packaged deployment, or as a standalone installation for more customization.
+
+<Note>
+  **Recommended**: Use [docker-mcrit](https://github.com/danielplohmann/docker-mcrit) for the easiest deployment with fully compatible versions across all components.
+</Note>
+
+## Docker Installation (Recommended)
+
+The dockerized deployment includes:
+- MCRIT server and workers
+- MongoDB database with persistence
+- Web frontend (MCRITweb) for browser-based interaction
+- All dependencies pre-configured
+
+<Steps>
+  <Step title="Clone the Docker Repository">
+    ```bash
+    git clone https://github.com/danielplohmann/docker-mcrit.git
+    cd docker-mcrit
+    ```
+  </Step>
+
+  <Step title="Start the Services">
+    ```bash
+    docker-compose up -d
+    ```
+    
+    This will start:
+    - MongoDB on port 27017
+    - MCRIT API server on port 8000
+    - MCRITweb frontend on port 8080
+    - One or more worker containers
+  </Step>
+
+  <Step title="Verify Installation">
+    Check that all services are running:
+    ```bash
+    docker-compose ps
+    ```
+    
+    Access the web interface at `http://localhost:8080`
+  </Step>
+</Steps>
+
+<Info>
+  The Docker deployment ensures version compatibility across MCRIT, MongoDB, and the web frontend.
+</Info>
+
+## Standalone Installation
+
+For standalone installation, you'll need to set up Python dependencies and MongoDB separately. This approach is recommended for:
+- Custom deployment configurations
+- Integration with existing MongoDB instances
+- Development and testing
+
+### Prerequisites
+
+The following assumes **Ubuntu** as the host operating system. Adjust commands for other Linux distributions accordingly.
+
+### System Requirements
+
+- Python 3.7 or higher
+- MongoDB 5.0 or higher
+- 4GB RAM minimum (8GB+ recommended for larger datasets)
+- Ubuntu 18.04, 20.04, or 22.04
+
+### Step 1: Install Python and Dependencies
+
+<Steps>
+  <Step title="Install Python">
+    ```bash
+    sudo apt install python3 python3-pip
+    ```
+  </Step>
+
+  <Step title="Clone MCRIT Repository">
+    ```bash
+    git clone https://github.com/danielplohmann/mcrit.git
+    cd mcrit
+    ```
+  </Step>
+
+  <Step title="Install Python Dependencies">
+    MCRIT requires the following key packages:
+    ```bash
+    pip install -r requirements.txt
+    ```
+    
+    Key dependencies include:
+    - `smda>=1.13.19` - Smart Disassembler for binary analysis
+    - `pymongo` - MongoDB driver
+    - `falcon>=2.0.0` - REST API framework
+    - `mmh3>=2.5.1` - MurmurHash3 for hashing
+    - `numpy<2.0.0` - Numerical computing
+    - `scipy` - Scientific computing for clustering
+    - `lief>=0.16.0` - Binary parsing (PE, ELF)
+    - `picblocks>=1.1.2` - PicHash computation
+    - `gunicorn` - Production WSGI server (Linux only)
+    - `waitress` - WSGI server (cross-platform)
+  </Step>
+
+  <Step title="Install MCRIT Module">
+    Install MCRIT in editable mode for development:
+    ```bash
+    pip install -e .
+    ```
+    
+    Or install normally:
+    ```bash
+    pip install .
+    ```
+  </Step>
+</Steps>
+
+<Info>
+  After installation, MCRIT can be used without an internet connection if desired.
+</Info>
+
+### Step 2: Install and Configure MongoDB
+
+MongoDB 5.0 is the default and recommended backend for persistent data storage.
+
+<Steps>
+  <Step title="Install MongoDB Signing Key">
+    ```bash
+    sudo apt-get install gnupg
+    wget -qO - https://www.mongodb.org/static/pgp/server-5.0.asc | sudo apt-key add -
+    ```
+  </Step>
+
+  <Step title="Add MongoDB Repository">
+    Choose the appropriate repository for your Ubuntu version:
+    
+    **Ubuntu 22.04 (Jammy):**
+    ```bash
+    echo "deb [ arch=amd64,arm64 ] https://repo.mongodb.org/apt/ubuntu jammy/mongodb-org/5.0 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-5.0.list
+    ```
+    
+    **Ubuntu 20.04 (Focal):**
+    ```bash
+    echo "deb [ arch=amd64,arm64 ] https://repo.mongodb.org/apt/ubuntu focal/mongodb-org/5.0 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-5.0.list
+    ```
+    
+    **Ubuntu 18.04 (Bionic):**
+    ```bash
+    echo "deb [ arch=amd64,arm64 ] https://repo.mongodb.org/apt/ubuntu bionic/mongodb-org/5.0 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-5.0.list
+    ```
+  </Step>
+
+  <Step title="Install MongoDB">
+    ```bash
+    sudo apt-get update
+    sudo apt-get install -y mongodb-org
+    ```
+  </Step>
+
+  <Step title="Start MongoDB Service">
+    Start MongoDB immediately:
+    ```bash
+    sudo systemctl start mongod
+    ```
+    
+    Enable MongoDB to start on system boot:
+    ```bash
+    sudo systemctl enable mongod
+    ```
+  </Step>
+
+  <Step title="Verify MongoDB is Running">
+    ```bash
+    sudo systemctl status mongod
+    ```
+    
+    You should see `active (running)` in the output.
+  </Step>
+</Steps>
+
+<Warning>
+  Ensure MongoDB is running before starting MCRIT server and workers, or they will fail to connect.
+</Warning>
+
+### Step 3: Start MCRIT Components
+
+MCRIT requires both a server and at least one worker to be running.
+
+<Steps>
+  <Step title="Start the Server">
+    In one terminal session:
+    ```bash
+    mcrit server
+    ```
+    
+    The server will start and listen on `http://127.0.0.1:8000/` by default.
+    
+    On Linux, MCRIT automatically uses `gunicorn` for better performance. On Windows, it uses `waitress`.
+  </Step>
+
+  <Step title="Start a Worker">
+    In a separate terminal session:
+    ```bash
+    mcrit worker
+    ```
+    
+    The worker will connect to MongoDB and begin processing queued jobs.
+  </Step>
+
+  <Step title="Verify Services">
+    Test the API endpoint:
+    ```bash
+    curl http://127.0.0.1:8000/status
+    ```
+    
+    Or use the CLI client:
+    ```bash
+    mcrit client status
+    ```
+  </Step>
+</Steps>
+
+<Info>
+  You can run multiple workers in parallel to process jobs faster. Each worker should run in its own terminal or as a separate service.
+</Info>
+
+## Advanced Configuration
+
+### MongoDB Connection
+
+MCRIT's MongoDB connection is fully configurable. Configuration options can be set via environment variables or configuration files in `mcrit/config/`.
+
+### Server Options
+
+**Profiling Mode** (for performance analysis):
+```bash
+mcrit server --profile
+```
+
+**Force Gunicorn** (Linux only):
+```bash
+mcrit server --gunicorn
+```
+
+### Worker Types
+
+MCRIT supports different worker implementations:
+
+**Standard Worker:**
+```bash
+mcrit worker
+```
+
+**Spawning Worker** (for better memory management):
+```bash
+mcrit spawningworker
+```
+
+The spawning worker executes jobs in separate subprocesses, reducing issues with locked memory allocations.
+
+### API Token Authentication
+
+MCRIT supports API token authentication for secure deployments. Tokens can be set via the server configuration and passed through the `apitoken` header field.
+
+## Verification
+
+After installation, verify your setup:
+
+<CodeGroup>
+```bash CLI Status Check
+mcrit client status
+```
+
+```bash API Health Check
+curl http://127.0.0.1:8000/status
+```
+
+```python Python Client
+from mcrit.client.McritClient import McritClient
+
+client = McritClient()
+status = client.getStatus()
+print(status)
+```
+</CodeGroup>
+
+Expected output:
+```json
+{
+  "status": {
+    "db_state": 0,
+    "storage_type": "mongodb",
+    "num_bands": 20,
+    "num_samples": 0,
+    "num_families": 0,
+    "num_functions": 0,
+    "num_pichashes": 0
+  }
+}
+```
+
+## Troubleshooting
+
+<Accordion title="Server won't start">
+  - Check that MongoDB is running: `sudo systemctl status mongod`
+  - Verify no other service is using port 8000
+  - Check server logs for connection errors
+</Accordion>
+
+<Accordion title="Worker can't connect to MongoDB">
+  - Ensure MongoDB is accessible on localhost:27017
+  - Check MongoDB authentication settings
+  - Verify firewall rules aren't blocking connections
+</Accordion>
+
+<Accordion title="Import errors for dependencies">
+  - Reinstall requirements: `pip install -r requirements.txt --force-reinstall`
+  - Check Python version is 3.7+
+  - Use a virtual environment to avoid conflicts
+</Accordion>
+
+<Accordion title="Out of memory errors">
+  - Increase system RAM allocation
+  - Use spawning worker instead of standard worker
+  - Reduce concurrent workers
+  - Process smaller batches of samples
+</Accordion>
+
+## Next Steps
+
+<Card title="Quickstart Guide" icon="rocket" href="/quickstart">
+  Now that MCRIT is installed, learn how to submit your first sample and perform analysis.
+</Card>

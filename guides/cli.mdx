@@ -1,0 +1,346 @@
+---
+title: CLI Guide
+description: Complete guide to using the MCRIT command-line interface for sample submission, searching, and data management
+---
+
+The MCRIT CLI provides a command-line interface for interacting with the MCRIT backend. It supports sample submission, querying, data import/export, searching, and queue management.
+
+## Installation
+
+The CLI is included when you install MCRIT:
+
+```bash
+pip install -e .
+```
+
+## Configuration
+
+You can configure the MCRIT server and API token in three ways (in order of precedence):
+
+1. **Command-line arguments** (highest priority)
+2. **Environment variables** (`MCRIT_CLI_SERVER` and `MCRIT_CLI_APITOKEN`)
+3. **`.env` file** in the project root
+
+### Using a .env file
+
+Create a `.env` file in your project root:
+
+```bash
+MCRIT_CLI_SERVER=http://localhost:8000
+MCRIT_CLI_APITOKEN=your_token_here
+```
+
+### Using environment variables
+
+```bash
+export MCRIT_CLI_SERVER=http://localhost:8000
+export MCRIT_CLI_APITOKEN=your_token_here
+```
+
+### Using command-line arguments
+
+```bash
+mcrit client status --server http://localhost:8000 --apitoken your_token_here
+```
+
+## Status Command
+
+Check the status of your MCRIT instance:
+
+```bash
+mcrit client status
+```
+
+Example output:
+```
+DB:        mongodb - 187 | 2026-03-04T12:00:00.000Z
+Families:  14
+Samples:   137
+Functions: 129110
+```
+
+## Submit Command
+
+The `submit` command supports 4 submission modes with various auxiliary flags.
+
+### Command Syntax
+
+```bash
+usage: mcrit client submit [-h] [--mode {file,dir,recursive,malpedia}] [-f FAMILY] [-v VERSION] [-l] [-x] [-o OUTPUT]
+                           [-s] [-w] [-t WORKER_TIMEOUT]
+                           filepath
+
+positional arguments:
+  filepath              Submit the folllowing <filepath>, indicating a (file/dir).
+
+options:
+  -h, --help            show this help message and exit
+  --mode {file,dir,recursive,malpedia}
+                        Submit a single <file> or all files in a <dir>. Use <recursive> submission for a folder
+                        structured as ./family_name/version/version/files. Synchronize <malpedia> into MCRIT. Default:
+                        <file>.
+  -f FAMILY, --family FAMILY
+                        Set/Override SmdaReport with this family (only in modes: file/dir)
+  -v VERSION, --version VERSION
+                        Set/Override SmdaReport with this version (only in modes: file/dir)
+  -l, --library         Set/Override SmdaReport with the library flag (only in modes: file/dir/recursive, default:
+                        False).
+  -x, --executables_only
+                        Only process files that are parsable PE or ELF files (default: False).
+  -o OUTPUT, --output OUTPUT
+                        Optionally store SMDA reports in folder OUTPUT.
+  -s, --smda            Do not disassemble, instead only submit files that are recognized as SMDA reports (only works
+                        with modes: file/dir).
+  -w, --worker          Spawn workers to process the submission (only in modes: dir/recursive/malpedia, default:
+                        False).
+  -t WORKER_TIMEOUT, --worker-timeout WORKER_TIMEOUT
+                        Timeout for workers to conclude the submission (default: 300 seconds).
+```
+
+### File Mode
+
+Submit a single file. If the provided path ends with `0x[0-9a-fA-F]{8,16}`, the client assumes this is a mapped file and uses the given address as IMAGEBASE.
+
+```bash
+mcrit client submit --mode file ~/malpedia/win.wannacryptor/vt-2017-05-05/0345782378ee7a8b48c296a120625fd439ed8699ae857c4f84befeb56e727366_dump_0x00400000
+```
+
+Example output:
+```
+0.906s -> (architecture: intel.32bit, base_addr: 0x00400000): 922 functions
+```
+
+**Submit with family override:**
+
+```bash
+mcrit client submit sample_unpacked -f some_family
+```
+
+Example output:
+```
+1.039s -> (architecture: intel.32bit, base_addr: 0x10000000): 634 functions
+```
+
+### Directory Mode
+
+Submit all files in a directory (no recursion).
+
+```bash
+mcrit client submit --mode dir ~/malpedia/win.wannacryptor/vt-2017-05-12/
+```
+
+Example output:
+```
+0.763s -> (architecture: intel.32bit, base_addr: 0x00400000): 926 functions
+0.884s -> (architecture: intel.32bit, base_addr: 0x00400000): 926 functions
+1.378s -> (architecture: intel.32bit, base_addr: 0x00400000): 165 functions
+0.830s -> (architecture: intel.32bit, base_addr: 0x00400000): 926 functions
+```
+
+**With worker spawning for parallel processing:**
+
+```bash
+mcrit client submit --mode dir ~/samples/ --worker
+```
+
+### Recursive Mode
+
+Recursively submit all files found in a directory, assuming a structure like:
+
+```
+./family_name/version/version/files
+```
+
+The CLI uses `family_name` and (optionally, if nested enough) `version` as fields in MCRIT.
+
+```bash
+mcrit client submit --mode recursive ~/malware_collection/
+```
+
+**Mark as library code:**
+
+```bash
+mcrit client submit --mode recursive ~/libraries/ --library
+```
+
+### Malpedia Mode
+
+Dedicated mode to synchronize all data available in the Malpedia repository.
+
+<Note>
+If files from Malpedia are already available in MCRIT, they will be skipped on the next execution, making this command suitable to synchronize updated states of Malpedia into MCRIT.
+</Note>
+
+**Requirements:**
+- Only ELF and PE (win.*) families are processed
+- Only files labeled as `_unpacked` or `_dump_0x...` are considered
+- Directory must be named `malpedia`
+- Must contain `malpedia.bib` file
+
+```bash
+mcrit client submit --mode malpedia ~/malpedia
+```
+
+Example output:
+```
+/home/analyst/work/Repositories/malpedia/win.3cx_backdoor/11be1803e2e307b647a8a7e02d128335c448ff741bf06bf52b332e0bbf423b03_unpacked
+ 1.625s -> (architecture: intel.64bit, base_addr: 0x180000000): 717 functions
+/home/analyst/work/Repositories/malpedia/win.8t_dropper/2019-01-23/b541e0e29c34800a067b060d9ee18d8d35c75f056f4246b1ce9561a5441d5a0f_unpacked
+ 0.305s -> (architecture: intel.32bit, base_addr: 0x10000000): 213 functions
+[...]
+```
+
+### Submission Options
+
+**Only process executables:**
+
+```bash
+mcrit client submit --mode dir ~/samples/ --executables_only
+```
+
+**Save SMDA reports:**
+
+```bash
+mcrit client submit --mode file sample.exe --output ./reports/
+```
+
+**Submit SMDA reports directly:**
+
+```bash
+mcrit client submit --mode dir ~/smda_reports/ --smda
+```
+
+## Query Command
+
+Query MCRIT with a sample to find matches without storing the sample.
+
+```bash
+usage: mcrit client query [-h] [-a BASE_ADDR] [-b BITNESS] [-o OUTPUT] [-s] [-f] filepath
+```
+
+**Query an executable:**
+
+```bash
+mcrit client query sample.exe
+```
+
+**Query a mapped buffer:**
+
+```bash
+mcrit client query memdump.bin --base_addr 0x400000 --bitness 32
+```
+
+**Save results to file:**
+
+```bash
+mcrit client query sample.exe --output ./results/
+```
+
+**Force recalculation:**
+
+```bash
+mcrit client query sample.exe --force-recalculation
+```
+
+Example output:
+```
+Started job: 64243b27f3876416bffad86e, waiting for result...
+|                         Family |              Version | Sample |   SHA256 |  Func |   Min |   Pic |   Lib |       Direct |         Freq |
+|--------------------------------|----------------------|--------|----------|-------|-------|-------|-------|--------------|--------------|
+|                  win.wannacry |          vt-2017-05 |      1 | ca29de1d |   922 |   850 |   920 |    72 |  92.50  89.20 |  88.30  85.10 |
+```
+
+## Search Command
+
+Search across families, samples, and functions.
+
+```bash
+usage: mcrit client search [-h] search_term
+```
+
+**Example:**
+
+```bash
+mcrit client search wanna
+```
+
+Example output:
+```
+Family Search Results
+Famliy 2 (win.wannacry): 
+********************
+Sample Search Results
+Sample 1 (intel, 32 bit) - ca29de1dc8817868c93e54b09f557fe14e40083c0955294df5bd91f52ba469c8_unpacked (win.wannacry): 
+Sample 2 (intel, 32 bit) - 3e6de9e2baacf930949647c399818e7a2caea2626df6a468407854aaa515eed9 (win.wannacry): 
+********************
+```
+
+## Queue Command
+
+Inspect the current processing queue and job statuses.
+
+```bash
+usage: mcrit client queue [-h] [--filter FILTER]
+```
+
+**View all jobs:**
+
+```bash
+mcrit client queue
+```
+
+**Filter jobs:**
+
+```bash
+mcrit client queue --filter matching
+```
+
+Example output:
+```
+64243b27f3876416bffad86e 64243b28cbc77c2df4d8d79f | 2023-03-29T13:20:39.065Z 2023-03-29T13:20:39.114Z 2023-03-29T13:20:40.593Z | updateMinHashesForSample(2) - 1
+64131888fbb4d9d4a029164d 6413188c15e4f20d519b35ba | 2023-03-16T13:24:24.707Z 2023-03-16T13:24:24.755Z 2023-03-16T13:24:28.366Z | addBinarySample(None, ca29de1dc8817868c93e54b09f557fe14e40083c0955294df5bd91f52ba469c8_unpacked, win.wannacry, , False, 0, 32) - 1
+641316eefbb4d9d4a029164a 641316f115e4f20d519b322b | 2023-03-16T13:17:34.834Z 2023-03-16T13:17:34.859Z 2023-03-16T13:17:37.238Z | addBinarySample(None, 766d7d591b9ec1204518723a1e5940fd6ac777f606ed64e731fd91b0b4c3d9fc_dump_0x10000000, win.contopee, , True, 268435456, 32) - 1
+```
+
+The output format is:
+```
+<job_id> <result_id> | <created> <started> <finished> | <method> - <progress>
+```
+
+## Export and Import Commands
+
+For data export and import operations, see the [Data Import/Export Guide](/guides/data-import-export).
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Processing Large Collections">
+    - Use the `--worker` flag for parallel processing with `dir`, `recursive`, or `malpedia` modes
+    - Set appropriate `--worker-timeout` values for large files
+    - Use `--executables_only` to skip non-executable files
+  </Accordion>
+
+  <Accordion title="Organizing Submissions">
+    - Use the `recursive` mode with a structured directory layout for automatic family/version tagging
+    - Override family and version metadata using `-f` and `-v` flags when needed
+    - Mark library code with the `--library` flag to improve matching accuracy
+  </Accordion>
+
+  <Accordion title="Working with Dumps">
+    - Name memory dumps with base address suffix: `filename_dump_0x00400000`
+    - MCRIT will automatically parse the base address from the filename
+    - Specify bitness in the filename (8 hex digits = 32-bit, 16 hex digits = 64-bit)
+  </Accordion>
+
+  <Accordion title="Saving SMDA Reports">
+    - Use `--output` to save SMDA reports for later use
+    - Submit pre-generated SMDA reports with `--smda` flag
+    - SMDA reports are stored as JSON files with `.smda` extension
+  </Accordion>
+</AccordionGroup>
+
+## See Also
+
+- [Python Client Guide](/guides/python-client) - Programmatic API access
+- [Data Import/Export](/guides/data-import-export) - Bulk data operations
+- [IDA Plugin](/guides/ida-plugin) - Integration with IDA Pro

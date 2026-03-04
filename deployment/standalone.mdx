@@ -1,0 +1,485 @@
+---
+title: "Standalone Deployment"
+description: "Deploy MCRIT directly on your system without Docker"
+---
+
+## Overview
+
+Standalone deployment gives you full control over the MCRIT installation and is suitable for:
+
+- Development and testing environments
+- Custom deployment scenarios
+- Systems where Docker is not available
+- Performance-critical production deployments with fine-tuned configurations
+
+<Note>
+This guide assumes Ubuntu as the host operating system. Adjustments may be needed for other Linux distributions or operating systems.
+</Note>
+
+## Prerequisites
+
+- Python 3.7 or later
+- pip (Python package manager)
+- MongoDB 5.0 or later
+- Git (for cloning the repository)
+- Sufficient system resources (4GB+ RAM recommended)
+
+## Installation Steps
+
+<Steps>
+  <Step title="Install Python dependencies">
+    Install Python and pip:
+    
+    ```bash
+    sudo apt install python3 python3-pip
+    ```
+  </Step>
+
+  <Step title="Clone MCRIT repository">
+    ```bash
+    git clone https://github.com/danielplohmann/mcrit.git
+    cd mcrit
+    ```
+  </Step>
+
+  <Step title="Install MCRIT dependencies">
+    ```bash
+    pip install -r requirements.txt
+    ```
+    
+    For development installation (editable mode):
+    
+    ```bash
+    pip install -e .
+    ```
+  </Step>
+
+  <Step title="Install and configure MongoDB">
+    Follow the MongoDB installation steps in the next section.
+  </Step>
+
+  <Step title="Start MCRIT services">
+    Start the server and worker processes as described in the Operation section.
+  </Step>
+</Steps>
+
+## MongoDB Installation
+
+MongoDB 5.0 is the default and recommended backend for persistent data storage.
+
+### Ubuntu 22.04 (Jammy)
+
+<Steps>
+  <Step title="Install MongoDB signing key">
+    ```bash
+    sudo apt-get install gnupg
+    wget -qO - https://www.mongodb.org/static/pgp/server-5.0.asc | sudo apt-key add -
+    ```
+  </Step>
+
+  <Step title="Add MongoDB repository">
+    ```bash
+    echo "deb [ arch=amd64,arm64 ] https://repo.mongodb.org/apt/ubuntu jammy/mongodb-org/5.0 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-5.0.list
+    ```
+  </Step>
+
+  <Step title="Install MongoDB">
+    ```bash
+    sudo apt-get update
+    sudo apt-get install -y mongodb-org
+    ```
+  </Step>
+
+  <Step title="Start MongoDB service">
+    ```bash
+    sudo systemctl start mongod
+    ```
+    
+    Enable MongoDB to start on system boot:
+    
+    ```bash
+    sudo systemctl enable mongod
+    ```
+  </Step>
+</Steps>
+
+### Ubuntu 20.04 (Focal)
+
+```bash
+sudo apt-get install gnupg
+wget -qO - https://www.mongodb.org/static/pgp/server-5.0.asc | sudo apt-key add -
+echo "deb [ arch=amd64,arm64 ] https://repo.mongodb.org/apt/ubuntu focal/mongodb-org/5.0 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-5.0.list
+sudo apt-get update
+sudo apt-get install -y mongodb-org
+sudo systemctl start mongod
+sudo systemctl enable mongod
+```
+
+### Ubuntu 18.04 (Bionic)
+
+```bash
+sudo apt-get install gnupg
+wget -qO - https://www.mongodb.org/static/pgp/server-5.0.asc | sudo apt-key add -
+echo "deb [ arch=amd64,arm64 ] https://repo.mongodb.org/apt/ubuntu bionic/mongodb-org/5.0 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-5.0.list
+sudo apt-get update
+sudo apt-get install -y mongodb-org
+sudo systemctl start mongod
+sudo systemctl enable mongod
+```
+
+### Verify MongoDB Installation
+
+```bash
+sudo systemctl status mongod
+mongo --eval 'db.runCommand({ connectionStatus: 1 })'
+```
+
+## Operation
+
+MCRIT consists of two main components that work together:
+
+### MCRIT Server
+
+The server provides the REST API interface for client interactions.
+
+**Start the server:**
+
+```bash
+mcrit server
+```
+
+By default, the server listens on `http://127.0.0.1:8000/`.
+
+**Using Gunicorn (Linux only, recommended for production):**
+
+```bash
+mcrit server --gunicorn
+```
+
+Gunicorn provides better performance for production deployments on Linux systems.
+
+<Info>
+The server uses `waitress` as the default WSGI server on Windows and when Gunicorn is not available.
+</Info>
+
+### MCRIT Worker
+
+Workers process queued jobs such as sample analysis, matching, and hash generation.
+
+**Start a worker:**
+
+```bash
+mcrit worker
+```
+
+**Start a spawning worker (for better memory management):**
+
+```bash
+mcrit spawningworker
+```
+
+<Note>
+Spawning workers execute jobs in separate child processes, which helps reduce memory allocation issues. Child processes are terminated after the timeout configured in `QUEUE_SPAWNINGWORKER_CHILDREN_TIMEOUT` (default: 3600 seconds).
+</Note>
+
+### Running Multiple Workers
+
+For improved performance, run multiple workers in separate terminals or as separate services:
+
+```bash
+# Terminal 1
+mcrit worker
+
+# Terminal 2
+mcrit worker
+
+# Terminal 3
+mcrit worker
+```
+
+## Systemd Service Configuration
+
+For production deployments, configure MCRIT to run as systemd services.
+
+### MCRIT Server Service
+
+Create `/etc/systemd/system/mcrit-server.service`:
+
+```ini
+[Unit]
+Description=MCRIT Server
+After=network.target mongodb.service
+Requires=mongodb.service
+
+[Service]
+Type=simple
+User=mcrit
+Group=mcrit
+WorkingDirectory=/opt/mcrit
+Environment="PATH=/opt/mcrit/venv/bin"
+ExecStart=/opt/mcrit/venv/bin/mcrit server --gunicorn
+Restart=on-failure
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=mcrit-server
+
+# Security settings
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/mcrit/data
+
+[Install]
+WantedBy=multi-user.target
+```
+
+### MCRIT Worker Service
+
+Create `/etc/systemd/system/mcrit-worker@.service`:
+
+```ini
+[Unit]
+Description=MCRIT Worker %i
+After=network.target mongodb.service mcrit-server.service
+Requires=mongodb.service
+Wants=mcrit-server.service
+
+[Service]
+Type=simple
+User=mcrit
+Group=mcrit
+WorkingDirectory=/opt/mcrit
+Environment="PATH=/opt/mcrit/venv/bin"
+ExecStart=/opt/mcrit/venv/bin/mcrit worker
+Restart=on-failure
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=mcrit-worker-%i
+
+# Security settings
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/mcrit/data
+
+[Install]
+WantedBy=multi-user.target
+```
+
+### Enable and Start Services
+
+```bash
+# Reload systemd configuration
+sudo systemctl daemon-reload
+
+# Enable services to start on boot
+sudo systemctl enable mcrit-server
+sudo systemctl enable mcrit-worker@1
+sudo systemctl enable mcrit-worker@2
+
+# Start services
+sudo systemctl start mcrit-server
+sudo systemctl start mcrit-worker@1
+sudo systemctl start mcrit-worker@2
+
+# Check status
+sudo systemctl status mcrit-server
+sudo systemctl status mcrit-worker@1
+```
+
+### View Service Logs
+
+```bash
+# Server logs
+sudo journalctl -u mcrit-server -f
+
+# Worker logs
+sudo journalctl -u mcrit-worker@1 -f
+
+# All MCRIT services
+sudo journalctl -u 'mcrit-*' -f
+```
+
+## Firewall Configuration
+
+Configure firewall rules to secure your MCRIT deployment.
+
+### UFW (Uncomplicated Firewall)
+
+```bash
+# Allow SSH (if needed)
+sudo ufw allow 22/tcp
+
+# Allow MCRIT API (from specific IPs or networks)
+sudo ufw allow from 192.168.1.0/24 to any port 8000
+
+# Or allow from any IP (not recommended for production)
+sudo ufw allow 8000/tcp
+
+# Block MongoDB from external access
+sudo ufw deny 27017/tcp
+
+# Enable firewall
+sudo ufw enable
+```
+
+### iptables
+
+```bash
+# Allow MCRIT API from specific network
+sudo iptables -A INPUT -p tcp -s 192.168.1.0/24 --dport 8000 -j ACCEPT
+
+# Block MongoDB from external access
+sudo iptables -A INPUT -p tcp --dport 27017 -j DROP
+
+# Save rules
+sudo netfilter-persistent save
+```
+
+<Warning>
+Never expose MongoDB port 27017 to the internet without proper authentication and encryption.
+</Warning>
+
+## Network Considerations
+
+### Binding to Specific Interfaces
+
+By default, the MCRIT server listens on all interfaces (`0.0.0.0:8000`). To restrict to localhost only, modify the server configuration or use a reverse proxy.
+
+### Using a Reverse Proxy
+
+For production deployments, use nginx or Apache as a reverse proxy:
+
+**nginx configuration example:**
+
+```nginx
+server {
+    listen 80;
+    server_name mcrit.example.com;
+
+    location / {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        
+        # Timeout for long-running requests
+        proxy_read_timeout 300s;
+        proxy_connect_timeout 75s;
+    }
+}
+```
+
+### SSL/TLS Configuration
+
+For secure communications, configure SSL/TLS on your reverse proxy:
+
+```nginx
+server {
+    listen 443 ssl http2;
+    server_name mcrit.example.com;
+
+    ssl_certificate /etc/ssl/certs/mcrit.crt;
+    ssl_certificate_key /etc/ssl/private/mcrit.key;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers HIGH:!aNULL:!MD5;
+
+    location / {
+        proxy_pass http://127.0.0.1:8000;
+        # ... proxy settings ...
+    }
+}
+```
+
+## User and Permissions Setup
+
+Create a dedicated user for running MCRIT:
+
+```bash
+# Create mcrit user
+sudo useradd -r -s /bin/bash -d /opt/mcrit mcrit
+
+# Create directories
+sudo mkdir -p /opt/mcrit/{data,logs}
+
+# Set ownership
+sudo chown -R mcrit:mcrit /opt/mcrit
+
+# Install MCRIT as the mcrit user
+sudo -u mcrit bash
+cd /opt/mcrit
+python3 -m venv venv
+source venv/bin/activate
+pip install mcrit
+```
+
+## Offline Operation
+
+After initial installation, MCRIT can operate without an internet connection:
+
+```bash
+# Install all dependencies
+pip install -r requirements.txt
+
+# Install MCRIT
+pip install -e .
+
+# Verify offline capability
+# Disconnect from internet and test
+mcrit server
+```
+
+## Troubleshooting
+
+<Accordion title="Server fails to start">
+  Check if port 8000 is already in use:
+  
+  ```bash
+  sudo netstat -tulpn | grep 8000
+  ```
+  
+  Verify MongoDB is running:
+  
+  ```bash
+  sudo systemctl status mongod
+  ```
+  
+  Check server logs for errors.
+</Accordion>
+
+<Accordion title="Worker not connecting to MongoDB">
+  Verify MongoDB connectivity:
+  
+  ```bash
+  mongo --host 127.0.0.1 --port 27017
+  ```
+  
+  Check MongoDB authentication settings if enabled.
+  
+  Ensure the worker has the correct configuration in the environment or config files.
+</Accordion>
+
+<Accordion title="Permission denied errors">
+  Ensure the MCRIT user has proper permissions:
+  
+  ```bash
+  sudo chown -R mcrit:mcrit /opt/mcrit
+  ```
+  
+  Check SELinux status if applicable:
+  
+  ```bash
+  sestatus
+  ```
+</Accordion>
+
+## Next Steps
+
+- Review [Configuration Options](/deployment/configuration) for advanced settings
+- Set up [Docker Deployment](/deployment/docker) for easier management
+- Learn to use the [MCRIT CLI](/usage/cli) for interacting with your instance
