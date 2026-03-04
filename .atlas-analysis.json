@@ -1,0 +1,134 @@
+{
+  "projectType": "api-service",
+  "projectName": "MCRIT",
+  "projectDescription": "MinHash-based Code Relationship & Investigation Toolkit for binary code similarity analysis using MinHash algorithms.",
+  "theme": "aspen",
+  "primaryColor": "#04e261",
+  "lightColor": "#047442",
+  "darkColor": "#041c2c",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "installation",
+              "quickstart"
+            ]
+          },
+          {
+            "group": "Deployment",
+            "pages": [
+              "deployment/docker",
+              "deployment/standalone",
+              "deployment/configuration"
+            ]
+          },
+          {
+            "group": "Usage Guides",
+            "pages": [
+              "guides/cli",
+              "guides/python-client",
+              "guides/ida-plugin",
+              "guides/data-import-export"
+            ]
+          },
+          {
+            "group": "Core Concepts",
+            "pages": [
+              "concepts/minhash",
+              "concepts/shinglers",
+              "concepts/pichash",
+              "concepts/architecture"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Overview",
+            "pages": [
+              "api/overview",
+              "api/authentication"
+            ]
+          },
+          {
+            "group": "Endpoints",
+            "pages": [
+              "api/status",
+              "api/samples",
+              "api/families",
+              "api/functions",
+              "api/matching",
+              "api/query",
+              "api/jobs",
+              "api/blocks"
+            ]
+          },
+          {
+            "group": "Python Client",
+            "pages": [
+              "api/client/mcrit-client",
+              "api/client/methods"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "MinHash-based code similarity analysis for binary code",
+    "REST API with server-worker architecture",
+    "CLI tool for sample submission and management",
+    "Python client library for programmatic access",
+    "IDA Pro plugin integration",
+    "MongoDB-backed persistent storage",
+    "PicHash and PicBlockHash matching",
+    "SMDA disassembly integration",
+    "Job queue system for asynchronous processing",
+    "Family and sample management",
+    "Unique block identification for YARA rule generation",
+    "Cross-matching capabilities"
+  ],
+  "publicApiSurface": [
+    "GET /status - Get server status and statistics",
+    "GET /version - Get server version",
+    "GET /config - Get server configuration",
+    "GET /export - Export data",
+    "POST /import - Import data",
+    "GET /families - List all families",
+    "GET /families/{family_id} - Get family details",
+    "PUT /families/{family_id} - Update family",
+    "DELETE /families/{family_id} - Delete family",
+    "GET /samples - List all samples",
+    "POST /samples - Add new sample",
+    "POST /samples/binary - Submit binary sample",
+    "GET /samples/{sample_id} - Get sample details",
+    "PUT /samples/{sample_id} - Update sample",
+    "DELETE /samples/{sample_id} - Delete sample",
+    "GET /samples/{sample_id}/functions - Get sample functions",
+    "GET /functions - List all functions",
+    "GET /functions/{function_id} - Get function details",
+    "GET /matches/sample/{sample_id} - Get sample matches",
+    "GET /matches/function/{function_id} - Get function matches",
+    "POST /query - Query with SMDA report",
+    "POST /query/binary - Query with binary file",
+    "POST /query/function - Query single function",
+    "GET /query/pichash/{pichash} - Query by PicHash",
+    "GET /query/picblockhash/{picblockhash} - Query by PicBlockHash",
+    "GET /jobs - List all jobs",
+    "GET /jobs/{job_id} - Get job details",
+    "GET /jobs/{job_id}/result - Get job result",
+    "GET /uniqueblocks/samples/{sample_ids} - Get unique blocks",
+    "McritClient - Python client class",
+    "McritConsole - CLI interface",
+    "mcrit server - Start API server",
+    "mcrit worker - Start background worker",
+    "mcrit client - CLI commands"
+  ]
+}
